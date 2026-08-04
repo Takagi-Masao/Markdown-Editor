@@ -1,6 +1,6 @@
 # Markdown 编辑器 - 实时预览 + 导出 PDF
 
-一个功能丰富的 Web 端 Markdown 编辑器，基于 **markdown-palettes** 组件构建，支持实时预览、代码高亮、数学公式渲染以及 PDF 导出。
+一个功能丰富的 Web 端 Markdown 编辑器，支持实时预览、代码高亮、数学公式渲染以及 PDF 导出。
 
 ## ✨ 主要特性
 
@@ -15,8 +15,6 @@
 
 ## 🛠️ 技术栈
 
-- **前端框架**：Vue 3 (Composition API)
-- **编辑器核心**：[markdown-palettes](https://github.com/luogu-dev/markdown-palettes "markdown-palettes")  —— 轻量级 Markdown 编辑器组件
 - **Markdown 解析**：marked
 - **代码高亮**：highlight.js
 - **数学公式**：KaTeX

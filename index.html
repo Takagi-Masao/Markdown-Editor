@@ -300,11 +300,11 @@
             .divider { display: none; }
         }
 
-        /* ========== 打印样式：默认隐藏页眉页脚，设置舒适边距 ========== */
+        /* ========== 打印样式：无页眉页脚，设置舒适边距 ========== */
         @media print {
             @page {
                 size: A4;
-                margin: 0;            /* 边距设为 0，隐藏页眉页脚 */
+                margin: 0;            /* 边距设为 0 */
             }
 
             body {
@@ -319,7 +319,6 @@
                 overflow: visible !important;
             }
 
-            /* 为内容区域增加内边距，替代原先的页面边距 */
             #app {
                 display: block !important;
                 height: auto !important;
