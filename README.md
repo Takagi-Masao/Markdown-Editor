@@ -15,10 +15,12 @@
 
 ## 🛠️ 技术栈
 
+- **前端框架**：Vue 3 (Composition API)
 - **Markdown 解析**：marked
 - **代码高亮**：highlight.js
 - **数学公式**：KaTeX
 - **PDF 导出**：浏览器原生 `window.print()` 配合 CSS 打印样式
+- **UI**：纯 CSS
 
 ## 🚀 快速开始
 
