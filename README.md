@@ -4,7 +4,7 @@
 
 ## ✨ 主要特性
 
-- **便携式部署**：无需其他额外配置，直接在浏览器打开 `index.html` 即可使用。
+- **便携式部署**：将所有功能整合至双击即可使用的 `all-in-one.html`，无需额外配置。
 - **实时分屏预览**：左侧编辑，右侧即时渲染 Markdown 效果。
 - **丝滑同步滚动**：编辑区与预览区滚动位置实时同步，互不干扰。
 - **代码语法高亮**：自动识别代码语言，使用 highlight.js 进行高亮。
@@ -25,7 +25,14 @@
 ## 🚀 快速开始
 
 1. 克隆或下载本项目到本地。
-2. 用浏览器直接打开 `index.html` 即可使用。
+2. 使用以下方法打开打开 `index.html`：
+   - 使用 `VS Code Live Server` 插件打开 `index.html`。
+   - 在项目根目录使用 Python 内置的 HTTP 服务器打开 `index.html`：
+     ```bash
+     python -m http.server 8000
+     ```
+
+   或者直接双击 `all-in-one.html` 即可使用。
 3. 编辑 Markdown 内容，右侧实时预览效果。
 4. 点击「导出 PDF」按钮，在弹出的打印对话框中选择「另存为 PDF」即可保存。
 
@@ -37,11 +44,18 @@
 ## 🧩 项目结构
 
 ```
-├── index.html # 主页面（包含所有 HTML、CSS 和 JS）
+├── index.html # 主页面
+├── css
+|   ├── style.css # 自定义样式
+├── js
+|   ├── main.js # 主 JavaScript 文件
+|   ├── markdown.js # Markdown 解析器
+|   ├── renderer.js # 渲染器
+|   └── editor.js # 编辑器
+├── all-in-one.html # 所有文件合并后的页面
 ├── LICENSE # 许可证文件
 └── README.md # 本文件
 ```
-
 
 ## 📝 示例 Markdown
 
