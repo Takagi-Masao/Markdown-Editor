@@ -29,8 +29,9 @@
    - 使用 `VS Code Live Server` 插件打开 `index.html`。
    - 在项目根目录使用 Python 内置的 HTTP 服务器打开 `index.html`：
      ```bash
-     python -m http.server 8000
+     python -m http.server <port>
      ```
+     然后访问 `http://localhost:<port>` 即可。
 
    或者直接双击 `all-in-one.html` 即可使用。
 3. 编辑 Markdown 内容，右侧实时预览效果。
