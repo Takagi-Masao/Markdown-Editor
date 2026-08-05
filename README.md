@@ -46,13 +46,13 @@
 ```
 ├── index.html # 主页面
 ├── css
-|   ├── style.css # 自定义样式
+|   └── style.css # 自定义样式
 ├── js
 |   ├── main.js # 主 JavaScript 文件
 |   ├── markdown.js # Markdown 解析器
 |   ├── renderer.js # 渲染器
 |   └── editor.js # 编辑器
-├── all-in-one.html # 所有文件合并后的页面
+├── all-in-one.html # 双击即可使用的整合文件
 ├── LICENSE # 许可证文件
 └── README.md # 本文件
 ```
