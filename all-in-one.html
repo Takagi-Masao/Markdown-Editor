@@ -8,8 +8,7 @@
     <!-- KaTeX 样式 -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css" />
     <!-- highlight.js 代码高亮主题 -->
-    <link rel="stylesheet"
-    href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.9.0/build/styles/github.min.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.9.0/build/styles/github.min.css" />
 
     <style>
         :root {
@@ -69,6 +68,7 @@
             gap: 12px;
             flex-wrap: wrap;
         }
+
         .toolbar-title {
             font-weight: 600;
             font-size: 15px;
@@ -76,12 +76,14 @@
             letter-spacing: -0.01em;
             white-space: nowrap;
         }
+
         .toolbar-actions {
             display: flex;
             gap: 8px;
             align-items: center;
             flex-wrap: wrap;
         }
+
         .btn {
             display: inline-flex;
             align-items: center;
@@ -97,29 +99,35 @@
             font-family: var(--font-sans);
             letter-spacing: 0.01em;
         }
+
         .btn-export {
             background: var(--accent);
             color: #fff;
             border-color: var(--accent);
         }
+
         .btn-export:hover {
             background: var(--accent-hover);
             border-color: var(--accent-hover);
             box-shadow: 0 2px 8px rgba(45, 122, 255, 0.3);
         }
+
         .btn-outline {
             background: transparent;
             color: var(--text-secondary);
             border-color: var(--border);
         }
+
         .btn-outline:hover {
             background: #f3f4f6;
             border-color: #cbd5e1;
             color: var(--text);
         }
+
         .btn svg {
             flex-shrink: 0;
         }
+
         .divider {
             width: 1px;
             height: 22px;
@@ -143,6 +151,7 @@
             border-right: 1px solid var(--border);
             background: var(--editor-bg);
         }
+
         .editor-pane .pane-header {
             padding: 8px 16px;
             font-size: 11px;
@@ -155,6 +164,7 @@
             flex-shrink: 0;
             user-select: none;
         }
+
         .editor-pane textarea {
             flex: 1;
             width: 100%;
@@ -171,9 +181,11 @@
             -moz-tab-size: 2;
             min-height: 0;
         }
+
         .editor-pane textarea::placeholder {
             color: #c0c7cf;
         }
+
         .editor-pane textarea:focus {
             background: #fefefe;
         }
@@ -185,6 +197,7 @@
             min-width: 0;
             background: var(--preview-bg);
         }
+
         .preview-pane .pane-header {
             padding: 8px 16px;
             font-size: 11px;
@@ -197,6 +210,7 @@
             flex-shrink: 0;
             user-select: none;
         }
+
         .preview-content {
             flex: 1;
             overflow-y: auto;
@@ -229,6 +243,7 @@
         .preview-content a { color: var(--accent); text-decoration: none; }
         .preview-content a:hover { text-decoration: underline; }
         .preview-content strong { font-weight: 600; }
+
         .preview-content blockquote {
             margin: 1em 0;
             padding: 0.6em 1em;
@@ -237,7 +252,9 @@
             border-radius: 0 6px 6px 0;
             color: #57606a;
         }
+
         .preview-content blockquote p:last-child { margin-bottom: 0; }
+        
         .preview-content code {
             font-family: var(--font-mono);
             font-size: 0.88em;
@@ -246,6 +263,7 @@
             border-radius: 4px;
             color: #d63384;
         }
+
         .preview-content pre {
             margin: 1em 0;
             padding: 16px 20px;
@@ -257,6 +275,7 @@
             line-height: 1.55;
             max-height: 400px;
         }
+
         .preview-content pre code {
             background: transparent;
             padding: 0;
@@ -265,6 +284,7 @@
             border-radius: 0;
             white-space: pre;
         }
+
         .preview-content ul,
         .preview-content ol { margin: 0.8em 0; padding-left: 1.8em; }
         .preview-content li { margin-bottom: 0.3em; }
@@ -276,7 +296,6 @@
         .preview-content img { max-width: 100%; border-radius: 6px; }
         .preview-content hr { border: none; border-top: 2px solid #e4e7ec; margin: 1.5em 0; }
         .preview-content input[type="checkbox"] { margin-right: 0.4em; accent-color: var(--accent); }
-
         .preview-content .katex { font-size: 1.1em; }
 
         @media (max-width: 768px) {
@@ -292,6 +311,7 @@
             .toolbar-title { font-size: 13px; }
             .divider { display: none; }
         }
+
         @media (max-width: 480px) {
             .toolbar { flex-direction: column; align-items: flex-start; gap: 6px; }
             .toolbar-actions { width: 100%; justify-content: flex-end; flex-wrap: wrap; }
@@ -300,16 +320,16 @@
             .divider { display: none; }
         }
 
-        /* ========== 打印样式：无页眉页脚，设置舒适边距 ========== */
+        /* ========== 打印样式 ========== */
         @media print {
             @page {
                 size: A4;
-                margin: 0;            /* 边距设为 0 */
+                margin: 18mm 16mm; /* 设置舒适边距 */
             }
 
             body {
                 padding: 0 !important;
-                margin: 0 !important;  /* 确保无额外边距 */
+                margin: 0 !important;
                 background: #fff !important;
                 font-size: 13px;
                 line-height: 1.6;
@@ -327,7 +347,7 @@
                 box-shadow: none;
                 border-radius: 0;
                 background: #fff;
-                padding: 18mm 16mm;   /* 手动设置内容边距 */
+                padding: 0 !important;
             }
 
             .toolbar {
