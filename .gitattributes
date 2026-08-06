@@ -1,0 +1,9 @@
+# 所有文本文件在检出时自动转换为系统默认换行符（Windows 用 CRLF，macOS/Linux 用 LF）
+* text=auto
+
+# 明确要求这些文件在仓库中永远保存为 LF
+*.js text eol=lf
+*.css text eol=lf
+*.html text eol=lf
+*.json text eol=lf
+*.md text eol=lf

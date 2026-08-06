@@ -27,14 +27,14 @@
 
                 <span class="divider"></span>
 
-                <button class="btn btn-outline" @click="insertBold" title="加粗 (Ctrl+B)">
+                <button class="btn btn-outline" @mousedown.prevent @click="insertBold" title="加粗 (Ctrl+B)">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
                         <path d="M6 4h8a4 4 0 0 1 4 4 4 4 0 0 1-4 4H6z" />
                         <path d="M6 12h9a4 4 0 0 1 4 4 4 4 0 0 1-4 4H6z" />
                     </svg>
                     加粗
                 </button>
-                <button class="btn btn-outline" @click="insertItalic" title="斜体 (Ctrl+I)">
+                <button class="btn btn-outline" @mousedown.prevent @click="insertItalic" title="斜体 (Ctrl+I)">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
                         <line x1="19" y1="4" x2="10" y2="4" />
                         <line x1="14" y1="20" x2="5" y2="20" />
@@ -42,7 +42,7 @@
                     </svg>
                     斜体
                 </button>
-                <button class="btn btn-outline" @click="insertCode" title="行内代码">
+                <button class="btn btn-outline" @mousedown.prevent @click="insertCode" title="行内代码">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <polyline points="16 18 22 12 16 6" />
                         <polyline points="8 6 2 12 8 18" />

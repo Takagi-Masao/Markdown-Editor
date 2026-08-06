@@ -1,6 +1,6 @@
 import { createApp, ref, computed, watch, nextTick, onMounted, onBeforeUnmount } from 'vue';
 import { parseMarkdown } from './markdown.js';
-import { applyHighlight, renderMathElements, bindSyncScroll } from './renderer.js';
+import { applyHighlight, renderMathElements } from './renderer.js';
 import { createEditorHelpers, loadFileContent } from './editor.js';
 
 const app = createApp({
@@ -34,25 +34,49 @@ console.log('Hello, world!');
         const { insertBold, insertItalic, insertCode, insertAtCursor } = createEditorHelpers(markdownContent, textareaRef);
 
         const renderedHtml = computed(() => parseMarkdown(markdownContent.value));
-        
-        // 点击“打开”按钮
+
+        // ---------- 滚动同步（编辑器驱动预览，且自动防止循环） ----------
+        let syncLock = false;   // 锁：当程序设置 preview.scrollTop 时忽略事件
+
+        function setupSyncScroll() {
+            const editor = textareaRef.value;
+            const preview = previewRef.value;
+            if (!editor || !preview) return () => {};
+
+            function onEditorScroll() {
+                if (syncLock) return;
+                const maxScrollTop = editor.scrollHeight - editor.clientHeight;
+                if (maxScrollTop <= 0) return;
+                const ratio = editor.scrollTop / maxScrollTop;
+                const previewMax = preview.scrollHeight - preview.clientHeight;
+                syncLock = true;
+                preview.scrollTop = ratio * Math.max(previewMax, 0);
+                syncLock = false;
+            }
+
+            editor.addEventListener('scroll', onEditorScroll, { passive: true });
+            return () => editor.removeEventListener('scroll', onEditorScroll);
+        }
+
+        let cleanupSync = null;
+
+        // ---------- 文件操作 ----------
         function openFile() {
             fileInput.value?.click();
         }
 
-        // 文件选择后的处理
         async function handleFileChange(event) {
             const file = event.target.files?.[0];
             if (!file) return;
-
             try {
-                const text = await loadFileContent(file);
+                let text = await loadFileContent(file);
+                // ✅ 统一换行符，避免与 textarea 内部表示不一致
+                text = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
                 markdownContent.value = text;
             } catch (err) {
                 console.error('无法读取文件:', err);
                 alert('文件读取失败，请重试');
             } finally {
-                // 清空选择，使重新选择同一文件也能触发 change
                 event.target.value = '';
             }
         }
@@ -60,11 +84,10 @@ console.log('Hello, world!');
         function exportPDF() {
             applyHighlight(previewRef.value);
             renderMathElements(previewRef.value);
-            requestAnimationFrame(() => {
-                window.print();
-            });
+            requestAnimationFrame(() => window.print());
         }
 
+        // ---------- 键盘快捷键 ----------
         function handleKeydown(e) {
             if (e.key === 'Tab' && !e.shiftKey) {
                 e.preventDefault();
@@ -88,25 +111,24 @@ console.log('Hello, world!');
             }
         }
 
-        let cleanupScroll = null;
-
-        watch(renderedHtml, async () => {
-            await nextTick();
-            applyHighlight(previewRef.value);
-            renderMathElements(previewRef.value);
-            if (cleanupScroll) cleanupScroll();
-            cleanupScroll = bindSyncScroll(textareaRef.value, previewRef.value);
-        });
-
+        // ---------- 生命周期 ----------
         onMounted(async () => {
             await nextTick();
             applyHighlight(previewRef.value);
             renderMathElements(previewRef.value);
-            cleanupScroll = bindSyncScroll(textareaRef.value, previewRef.value);
+            cleanupSync = setupSyncScroll();
         });
 
         onBeforeUnmount(() => {
-            if (cleanupScroll) cleanupScroll();
+            if (cleanupSync) cleanupSync();
+        });
+
+        // 预览更新后重新高亮、渲染，但不要重新绑定同步（避免重复绑定）
+        watch(renderedHtml, async () => {
+            await nextTick();
+            applyHighlight(previewRef.value);
+            renderMathElements(previewRef.value);
+            // 注意：不再重新绑定同步，锁定机制保证稳定
         });
 
         return {
