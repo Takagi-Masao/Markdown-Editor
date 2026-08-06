@@ -438,6 +438,13 @@
         <div class="toolbar">
             <span class="toolbar-title">📝 Markdown 编辑器</span>
             <div class="toolbar-actions">
+                <button class="btn btn-outline" @click="openFile" title="打开 Markdown 文件">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                        <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+                    </svg>
+                    打开
+                </button>
+                <span class="divider"></span>
                 <button class="btn btn-outline" @click="insertBold" title="加粗 (Ctrl+B)">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
                         <path d="M6 4h8a4 4 0 0 1 4 4 4 4 0 0 1-4 4H6z" />
@@ -471,6 +478,15 @@
                     </svg>
                     导出 PDF
                 </button>
+
+                <!-- 隐藏的文件输入 -->
+                <input
+                    type="file"
+                    ref="fileInput"
+                    style="display: none;"
+                    accept=".md,.txt,.markdown"
+                    @change="handleFileChange"
+                />
             </div>
         </div>
 
@@ -576,6 +592,7 @@ console.log('Hello, world!');
 
                 const textareaRef = ref(null);
                 const previewRef = ref(null);
+                const fileInput = ref(null);
 
                 let onEditorScroll = null;
                 let onPreviewScroll = null;
@@ -688,6 +705,35 @@ console.log('Hello, world!');
                     if (preview && onPreviewScroll) preview.removeEventListener('scroll', onPreviewScroll);
                 });
 
+                function loadFileContent(file) {
+                    return new Promise((resolve, reject) => {
+                        const reader = new FileReader();
+                        reader.onload = () => resolve(reader.result);
+                        reader.onerror = () => reject(new Error('文件读取失败'));
+                        reader.readAsText(file, 'UTF-8');
+                    });
+                }
+
+                const openFile = () => {
+                    fileInput.value?.click();
+                };
+
+                const handleFileChange = async (event) => {
+                    const file = event.target.files?.[0];
+                    if (!file) return;
+
+                    try {
+                        const text = await loadFileContent(file);
+                        markdownContent.value = text;
+                    } catch (err) {
+                        console.error('无法读取文件:', err);
+                        alert('文件读取失败，请重试');
+                    } finally {
+                        // 清空选择，使重新选择同一文件也能触发 change
+                        event.target.value = '';
+                    }
+                }
+
                 function getTextarea() { return textareaRef.value; }
 
                 function insertAroundSelection(before, after) {
@@ -762,6 +808,9 @@ console.log('Hello, world!');
                     renderedHtml,
                     textareaRef,
                     previewRef,
+                    fileInput,
+                    openFile,
+                    handleFileChange,
                     insertBold,
                     insertItalic,
                     insertCode,

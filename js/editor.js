@@ -1,5 +1,14 @@
 import { nextTick } from 'vue';
 
+export function loadFileContent(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = () => reject(new Error('文件读取失败'));
+        reader.readAsText(file, 'UTF-8');
+    });
+}
+
 export function createEditorHelpers(markdownContent, textareaRef) {
     function getTextarea() {
         return textareaRef.value;
