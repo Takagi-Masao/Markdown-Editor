@@ -15,7 +15,7 @@ const app = createApp({
 - 导出 PDF（点击右上角按钮）
 
 $$
-e^{i \\pi } + 1 = 0
+e^{i \\pi} + 1 = 0
 $$
 
 \`\`\`javascript
@@ -27,9 +27,11 @@ console.log('Hello, world!');
 你可以在[这里](https://help.luogu.com.cn/rules/academic/handbook/latex "LaTeX 格式手册")或者[这里](https://help.luogu.com.cn/rules/academic/handbook/markdown "洛谷 Markdown 格式手册")学习更多关于 Markdown 的知识。
 `);
 
+        const pageTitle = ref('Markdown 编辑器');
         const textareaRef = ref(null);
         const previewRef = ref(null);
         const fileInput = ref(null);
+        const currentFileName = ref(null);
 
         const { insertBold, insertItalic, insertCode, insertAtCursor } = createEditorHelpers(markdownContent, textareaRef);
 
@@ -70,9 +72,10 @@ console.log('Hello, world!');
             if (!file) return;
             try {
                 let text = await loadFileContent(file);
-                // ✅ 统一换行符，避免与 textarea 内部表示不一致
                 text = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
                 markdownContent.value = text;
+                currentFileName.value = file.name;
+                document.title = file.name + ' - Markdown 编辑器';
             } catch (err) {
                 console.error('无法读取文件:', err);
                 alert('文件读取失败，请重试');
@@ -81,33 +84,108 @@ console.log('Hello, world!');
             }
         }
 
-        function exportPDF() {
-            applyHighlight(previewRef.value);
-            renderMathElements(previewRef.value);
-            requestAnimationFrame(() => window.print());
+        function saveFile() {
+            const content = markdownContent.value;
+            let filename = currentFileName.value;
+
+            if (!filename) {
+                // 没有关联文件，则要求用户输入文件名
+                filename = prompt('请输入文件名：', 'untitled.md');
+                if (!filename) return;           // 取消输入则放弃保存
+                if (!filename.endsWith('.md')) {
+                    filename += '.md';
+                }
+                currentFileName.value = filename; // 之后就可以直接保存
+            }
+
+            const blob = new Blob([content], { type: 'text/markdown' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
         }
 
-        // ---------- 键盘快捷键 ----------
-        function handleKeydown(e) {
+        function exportPDF() {
+            // 生成 PDF 时，将页面标题临时改为当前文件名或 untitled.pdf，打印完成后再恢复
+            const baseName = currentFileName.value
+                ? currentFileName.value.replace(/\.[^/.]+$/, '') + '.pdf'
+                : 'untitled.pdf';
+            const oldTitle = document.title;
+            document.title = baseName;
+
+            // 等待 Vue 更新 DOM 后再打印
+            nextTick(() => {
+                applyHighlight(previewRef.value);
+                renderMathElements(previewRef.value);
+                window.print();
+                // 打印完成后恢复标题
+                document.title = oldTitle;
+            });
+        }
+
+        // ---------- 全局键盘快捷键 ----------
+        function handleGlobalKeydown(e) {
+            // 如果正在输入法组合中，不处理（以免打断中文输入）
+            if (e.isComposing) return;
+
+            const isCtrl = e.ctrlKey || e.metaKey;
+
+            // Ctrl + Shift + O ：打开文件
+            if (isCtrl && e.shiftKey && (e.key === 'O' || e.key === 'o')) {
+                e.preventDefault();
+                openFile();
+                return;
+            }
+
+            // Tab 键：插入两个空格，并阻止焦点转移
             if (e.key === 'Tab' && !e.shiftKey) {
                 e.preventDefault();
+                ensureTextareaFocus();
                 insertAtCursor('  ');
                 return;
             }
-            if ((e.ctrlKey || e.metaKey) && e.key === 'b') {
+
+            // Ctrl + B / Ctrl + I ：加粗 / 斜体
+            if (isCtrl && !e.shiftKey) {
+                if (e.key === 'b' || e.key === 'B') {
+                    e.preventDefault();
+                    ensureTextareaFocus();
+                    insertBold();
+                    return;
+                }
+                if (e.key === 'i' || e.key === 'I') {
+                    e.preventDefault();
+                    ensureTextareaFocus();
+                    insertItalic();
+                    return;
+                }
+            }
+
+            // Ctrl + S ：保存 Markdown
+            if (isCtrl && !e.shiftKey && (e.key === 's' || e.key === 'S')) {
                 e.preventDefault();
-                insertBold();
+                saveFile();
                 return;
             }
-            if ((e.ctrlKey || e.metaKey) && e.key === 'i') {
-                e.preventDefault();
-                insertItalic();
-                return;
-            }
-            if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+
+            // Ctrl + Shift + E ：导出 PDF
+            if (isCtrl && e.shiftKey && (e.key === 'E' || e.key === 'e')) {
                 e.preventDefault();
                 exportPDF();
                 return;
+            }
+        }
+
+        // 辅助：如果当前焦点不在 textarea，则聚焦（保留原有光标位置）
+        function ensureTextareaFocus() {
+            const ta = textareaRef.value;
+            if (!ta) return;
+            if (document.activeElement !== ta) {
+                ta.focus({ preventScroll: true });
             }
         }
 
@@ -117,10 +195,12 @@ console.log('Hello, world!');
             applyHighlight(previewRef.value);
             renderMathElements(previewRef.value);
             cleanupSync = setupSyncScroll();
+            document.addEventListener('keydown', handleGlobalKeydown);
         });
 
         onBeforeUnmount(() => {
             if (cleanupSync) cleanupSync();
+            document.removeEventListener('keydown', handleGlobalKeydown);
         });
 
         // 预览更新后重新高亮、渲染，但不要重新绑定同步（避免重复绑定）
@@ -132,17 +212,19 @@ console.log('Hello, world!');
         });
 
         return {
+            pageTitle,
             markdownContent,
             renderedHtml,
             textareaRef,
             previewRef,
             fileInput,
+            currentFileName,
             openFile,
             handleFileChange,
             insertBold,
             insertItalic,
             insertCode,
-            handleKeydown,
+            saveFile,
             exportPDF,
         };
     },

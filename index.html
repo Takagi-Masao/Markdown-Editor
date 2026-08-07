@@ -18,7 +18,7 @@
         <div class="toolbar">
             <span class="toolbar-title">📝 Markdown 编辑器</span>
             <div class="toolbar-actions">
-                <button class="btn btn-outline" @click="openFile" title="打开 Markdown 文件">
+                <button class="btn btn-outline" @click="openFile" title="打开 Markdown 文件（Ctrl+Shift+O）">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
                         <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
                     </svg>
@@ -27,14 +27,14 @@
 
                 <span class="divider"></span>
 
-                <button class="btn btn-outline" @mousedown.prevent @click="insertBold" title="加粗 (Ctrl+B)">
+                <button class="btn btn-outline" @click="insertBold" title="加粗（Ctrl+B）">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
                         <path d="M6 4h8a4 4 0 0 1 4 4 4 4 0 0 1-4 4H6z" />
                         <path d="M6 12h9a4 4 0 0 1 4 4 4 4 0 0 1-4 4H6z" />
                     </svg>
                     加粗
                 </button>
-                <button class="btn btn-outline" @mousedown.prevent @click="insertItalic" title="斜体 (Ctrl+I)">
+                <button class="btn btn-outline" @click="insertItalic" title="斜体（Ctrl+I）">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
                         <line x1="19" y1="4" x2="10" y2="4" />
                         <line x1="14" y1="20" x2="5" y2="20" />
@@ -42,7 +42,7 @@
                     </svg>
                     斜体
                 </button>
-                <button class="btn btn-outline" @mousedown.prevent @click="insertCode" title="行内代码">
+                <button class="btn btn-outline" @click="insertCode" title="行内代码">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <polyline points="16 18 22 12 16 6" />
                         <polyline points="8 6 2 12 8 18" />
@@ -52,7 +52,15 @@
 
                 <span class="divider"></span>
 
-                <button class="btn btn-export" @click="exportPDF">
+                <button class="btn btn-export" @click="saveFile" title="保存 Markdown（Ctrl+S）">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                        <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
+                        <polyline points="17 21 17 13 7 13 7 21" />
+                        <polyline points="7 3 7 8 15 8" />
+                    </svg>
+                    保存 Markdown
+                </button>
+                <button class="btn btn-export" @click="exportPDF" title="导出 PDF（Ctrl+Shift+E）">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
                         <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6z" />
                         <path d="M14 2v6h6" />
@@ -81,7 +89,6 @@
                     ref="textareaRef"
                     v-model="markdownContent"
                     placeholder="在此输入 Markdown 内容……"
-                    @keydown="handleKeydown"
                 ></textarea>
             </div>
             <div class="preview-pane">
