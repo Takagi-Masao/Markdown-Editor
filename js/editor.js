@@ -14,6 +14,47 @@ export function createEditorHelpers(markdownContent, textareaRef) {
         return textareaRef.value;
     }
 
+    // 通过 execCommand('insertText') 插入文本：
+    // 浏览器会把它当作一次普通输入，从而保留原生 Ctrl+Z / Ctrl+Y 撤销栈。
+    // （execCommand 已被标记为废弃，但主流浏览器至今仍支持，且这是唯一
+    //   能在 textarea 上不破坏原生撤销历史的做法。）
+    function execInsertText(text) {
+        const ta = getTextarea();
+        if (!ta || typeof document.execCommand !== 'function') return false;
+        const start = ta.selectionStart;
+        const end = ta.selectionEnd;
+        const scrollTop = ta.scrollTop;
+        const scrollLeft = ta.scrollLeft;
+        try { ta.focus({ preventScroll: true }); } catch (e) { ta.focus(); }
+        ta.setSelectionRange(start, end);
+        const ok = document.execCommand('insertText', false, text);
+        ta.scrollTop = scrollTop;
+        ta.scrollLeft = scrollLeft;
+        return ok;
+    }
+
+    // 手动插入（execCommand 不可用时的回退方案；此路径无法保留撤销历史）
+    function manualInsert(replacement, from, to) {
+        const ta = getTextarea();
+        if (!ta) return;
+        const start = ta.selectionStart;
+        const end = ta.selectionEnd;
+        const scrollTop = ta.scrollTop;
+        const scrollLeft = ta.scrollLeft;
+
+        markdownContent.value =
+            markdownContent.value.substring(0, start) +
+            replacement +
+            markdownContent.value.substring(end);
+
+        nextTick(() => {
+            try { ta.focus({ preventScroll: true }); } catch (e) { ta.focus(); }
+            ta.setSelectionRange(from, to);
+            ta.scrollTop = scrollTop;
+            ta.scrollLeft = scrollLeft;
+        });
+    }
+
     function insertAroundSelection(before, after) {
         const ta = getTextarea();
         if (!ta) return;
@@ -22,51 +63,38 @@ export function createEditorHelpers(markdownContent, textareaRef) {
         const selected = markdownContent.value.substring(start, end);
         const replacement = before + selected + after;
 
-        // 保存滚动位置
-        const scrollTop = ta.scrollTop;
-        const scrollLeft = ta.scrollLeft;
-
-        // 修改内容（就像手动输入一样，只是拼接字符串）
-        markdownContent.value =
-            markdownContent.value.substring(0, start) +
-            replacement +
-            markdownContent.value.substring(end);
-
-        nextTick(() => {
-            // 避免 focus 引起滚动
-            try { ta.focus({ preventScroll: true }); } catch (e) { ta.focus(); }
-
-            if (selected.length > 0) {
-                ta.setSelectionRange(start, start + replacement.length);
-            } else {
-                ta.setSelectionRange(start + before.length, start + before.length);
-            }
-
-            // 强制恢复滚动，覆盖浏览器可能的行为
-            ta.scrollTop = scrollTop;
-            ta.scrollLeft = scrollLeft;
-        });
+        if (execInsertText(replacement)) {
+            // 成功后把光标/选区放回包裹内容的内部，方便继续输入
+            nextTick(() => {
+                const ta2 = getTextarea();
+                if (!ta2) return;
+                if (selected.length > 0) {
+                    ta2.setSelectionRange(start + before.length, start + before.length + selected.length);
+                } else {
+                    const pos = start + before.length;
+                    ta2.setSelectionRange(pos, pos);
+                }
+            });
+        } else {
+            manualInsert(replacement, start + before.length, start + before.length + selected.length);
+        }
     }
 
     function insertAtCursor(text) {
         const ta = getTextarea();
         if (!ta) return;
         const start = ta.selectionStart;
-        const scrollTop = ta.scrollTop;
-        const scrollLeft = ta.scrollLeft;
 
-        markdownContent.value =
-            markdownContent.value.substring(0, start) +
-            text +
-            markdownContent.value.substring(ta.selectionEnd);
-
-        nextTick(() => {
-            try { ta.focus({ preventScroll: true }); } catch (e) { ta.focus(); }
-            const newPos = start + text.length;
-            ta.setSelectionRange(newPos, newPos);
-            ta.scrollTop = scrollTop;
-            ta.scrollLeft = scrollLeft;
-        });
+        if (execInsertText(text)) {
+            nextTick(() => {
+                const ta2 = getTextarea();
+                if (!ta2) return;
+                const pos = start + text.length;
+                ta2.setSelectionRange(pos, pos);
+            });
+        } else {
+            manualInsert(text, start + text.length, start + text.length);
+        }
     }
 
     const insertBold = () => insertAroundSelection('**', '**');

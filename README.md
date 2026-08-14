@@ -10,7 +10,8 @@
 - **代码语法高亮**：自动识别代码语言，使用 highlight.js 进行高亮。
 - **LaTeX 数学公式**：支持行内公式 `$...$` 和块级公式 `$$...$$`，由 KaTeX 渲染。
 - **双重保存机制**：既可保存 Markdown 文件也可以导出 PDF。
-- **编辑辅助工具**：提供加粗、斜体、行内代码等快捷按钮，支持 `Ctrl+B`、`Ctrl+I` 等快捷键，可在 `main.js` 中的 `handleGlobalKeydown` 自行修改。
+- **草稿自动保存**：编辑内容自动保存到浏览器本地存储，刷新或重开页面时可一键恢复，避免意外丢失。
+- **编辑辅助工具**：提供加粗、斜体、行内代码等快捷按钮，支持 `Ctrl+B`、`Ctrl+I` 等快捷键，可在 `main.js` 中的 `handleGlobalKeydown` 自行修改。工具栏插入操作基于 `execCommand('insertText')`，不会破坏浏览器原生的 `Ctrl+Z` 撤销历史。
 
 ## 🛠️ 技术栈
 
@@ -51,9 +52,9 @@
 |   └── style.css # 自定义样式
 ├── js
 |   ├── main.js # 主 JavaScript 文件
-|   ├── markdown.js # Markdown 解析器
-|   ├── renderer.js # 渲染器
-|   └── editor.js # 编辑器
+|   ├── renderer.js # 渲染器（Markdown 解析、代码高亮、KaTeX 公式渲染）
+|   ├── editor.js # 编辑器（选区插入等辅助功能）
+|   └── draft.js # 草稿自动保存（localStorage）
 ├── LICENSE # 许可证文件
 └── README.md # 本文件
 ```
