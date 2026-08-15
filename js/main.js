@@ -1,7 +1,9 @@
 import { createApp, ref, watch, nextTick, onMounted, onBeforeUnmount } from 'vue';
 import { parseMarkdown, renderMathElements } from './renderer.js';
-import { createEditorHelpers, loadFileContent } from './editor.js';
+import { createEditorHelpers } from './editor.js';
 import { saveDraft, loadDraft, clearDraft, formatDraftTime } from './draft.js';
+import { createOpenHelpers } from './open.js';
+import { createSaveHelpers } from './save.js';
 
 const DEFAULT_CONTENT = `# 欢迎使用 Markdown 编辑器
 
@@ -35,6 +37,21 @@ const app = createApp({
 
         const { insertBold, insertItalic, insertCode, insertAtCursor } = createEditorHelpers(markdownContent, textareaRef);
 
+        // ---------- 未保存修改标记 ----------
+        // 同步监听内容变化：任何途径的修改（打字、粘贴、IME、工具栏插入等）都会
+        // 立即置为未保存；加载/保存成功后由 open.js / save.js 显式重置为 false。
+        const isDirty = ref(false);
+        watch(markdownContent, () => {
+            isDirty.value = true;
+        }, { flush: 'sync' });
+
+        // 未保存确认弹窗的显示状态
+        const showUnsavedModal = ref(false);
+
+        // 文件句柄与待执行的打开操作（普通对象容器，供 open.js / save.js 共享）
+        const fileHandle = { value: null };
+        const pendingOpen = { value: null };
+
         // ---------- 预览渲染（防抖 200ms，避免每次击键都全量解析 + 重渲染） ----------
         // 初始值同步渲染一次；输入停止 200ms 后才刷新预览。
         // 代码高亮已在 marked 解析阶段完成，KaTeX 由下方 watch 在 DOM 更新后渲染。
@@ -55,6 +72,32 @@ const app = createApp({
                 saveDraft(markdownContent.value, currentFileName.value);
             }, 500);
         });
+
+        // ---------- 文件打开 / 保存（拆分为独立模块） ----------
+        const saveHelpers = createSaveHelpers({
+            markdownContent,
+            currentFileName,
+            isDirty,
+            fileHandle,
+            onSaveSuccess: () => {
+                clearTimeout(draftTimer);
+                clearDraft();
+            },
+        });
+
+        const openHelpers = createOpenHelpers({
+            markdownContent,
+            currentFileName,
+            fileInput,
+            isDirty,
+            showUnsavedModal,
+            fileHandle,
+            pendingOpen,
+            saveFile: saveHelpers.saveFile,
+        });
+
+        const { openFile, handleFileChange, handleUnsavedChoice, setupDragDrop } = openHelpers;
+        const { saveFile } = saveHelpers;
 
         // ---------- 滚动同步（编辑器驱动预览，且自动防止循环） ----------
         let syncLock = false;   // 锁：当程序设置 preview.scrollTop 时忽略事件
@@ -80,58 +123,9 @@ const app = createApp({
         }
 
         let cleanupSync = null;
+        let cleanupDragDrop = null;
 
-        // ---------- 文件操作 ----------
-        function openFile() {
-            fileInput.value?.click();
-        }
-
-        async function handleFileChange(event) {
-            const file = event.target.files?.[0];
-            if (!file) return;
-            try {
-                let text = await loadFileContent(file);
-                text = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
-                markdownContent.value = text;
-                currentFileName.value = file.name;
-                document.title = file.name + ' - Markdown 编辑器';
-            } catch (err) {
-                console.error('无法读取文件:', err);
-                alert('文件读取失败，请重试');
-            } finally {
-                event.target.value = '';
-            }
-        }
-
-        function saveFile() {
-            const content = markdownContent.value;
-            let filename = currentFileName.value;
-
-            if (!filename) {
-                // 没有关联文件，则要求用户输入文件名
-                filename = prompt('请输入文件名：', 'untitled.md');
-                if (!filename) return;           // 取消输入则放弃保存
-                if (!filename.endsWith('.md')) {
-                    filename += '.md';
-                }
-                currentFileName.value = filename; // 之后就可以直接保存
-            }
-
-            const blob = new Blob([content], { type: 'text/markdown' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = filename;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-
-            // 已成功导出，清除本地草稿（继续编辑会自动重新保存）
-            clearTimeout(draftTimer);
-            clearDraft();
-        }
-
+        // ---------- 导出 PDF ----------
         function exportPDF() {
             // 生成 PDF 时，将页面标题临时改为当前文件名或 untitled.pdf，打印完成后再恢复
             const baseName = currentFileName.value
@@ -157,6 +151,13 @@ const app = createApp({
         function handleGlobalKeydown(e) {
             // 如果正在输入法组合中，不处理（以免打断中文输入）
             if (e.isComposing) return;
+
+            // Esc：关闭未保存修改弹窗
+            if (e.key === 'Escape' && showUnsavedModal.value) {
+                showUnsavedModal.value = false;
+                pendingOpen.value = null;
+                return;
+            }
 
             const isCtrl = e.ctrlKey || e.metaKey;
 
@@ -225,6 +226,7 @@ const app = createApp({
                     markdownContent.value = draft.content;
                     currentFileName.value = draft.fileName;
                     document.title = draft.fileName ? draft.fileName + ' - Markdown 编辑器' : 'Markdown 编辑器';
+                    isDirty.value = true;  // 恢复的内容尚未保存到文件
                 }
                 // 选择不恢复时保留草稿，避免误触导致内容丢失（下次打开仍可恢复）
             }
@@ -232,6 +234,7 @@ const app = createApp({
             await nextTick();
             renderMathElements(previewRef.value);
             cleanupSync = setupSyncScroll();
+            cleanupDragDrop = setupDragDrop();
             document.addEventListener('keydown', handleGlobalKeydown);
         });
 
@@ -239,6 +242,7 @@ const app = createApp({
             clearTimeout(renderTimer);
             clearTimeout(draftTimer);
             if (cleanupSync) cleanupSync();
+            if (cleanupDragDrop) cleanupDragDrop();
             document.removeEventListener('keydown', handleGlobalKeydown);
         });
 
@@ -255,8 +259,10 @@ const app = createApp({
             previewRef,
             fileInput,
             currentFileName,
+            showUnsavedModal,
             openFile,
             handleFileChange,
+            handleUnsavedChoice,
             insertBold,
             insertItalic,
             insertCode,

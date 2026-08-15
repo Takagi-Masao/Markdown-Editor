@@ -100,6 +100,18 @@
                 ></div>
             </div>
         </div>
+
+        <!-- 未保存修改确认弹窗 -->
+        <div v-if="showUnsavedModal" class="modal-overlay" @click.self="handleUnsavedChoice(null)">
+            <div class="modal">
+                <p class="modal-text">当前文件有未保存的修改，是否保存后再打开新文件？</p>
+                <div class="modal-actions">
+                    <button class="btn btn-export" @click="handleUnsavedChoice(true)">保存</button>
+                    <button class="btn btn-outline" @click="handleUnsavedChoice(false)">不保存</button>
+                    <button class="btn btn-outline" @click="handleUnsavedChoice(null)">取消</button>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- highlight.js -->

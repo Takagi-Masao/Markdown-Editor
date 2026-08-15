@@ -416,3 +416,37 @@ body {
         text-decoration: underline;
     }
 }
+
+/* ========== 未保存修改确认弹窗 ========== */
+.modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.4);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+.modal {
+    background: var(--surface);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 24px;
+    max-width: 420px;
+    width: calc(100% - 40px);
+}
+
+.modal-text {
+    margin-bottom: 18px;
+    font-size: 14px;
+    line-height: 1.6;
+    color: var(--text);
+}
+
+.modal-actions {
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+}
