@@ -99,27 +99,44 @@ const app = createApp({
         const { openFile, handleFileChange, handleUnsavedChoice, setupDragDrop } = openHelpers;
         const { saveFile } = saveHelpers;
 
-        // ---------- 滚动同步（编辑器驱动预览，且自动防止循环） ----------
-        let syncLock = false;   // 锁：当程序设置 preview.scrollTop 时忽略事件
+        // ---------- 滚动同步（双向，按滚动比例互相映射） ----------
+        let syncLock = false;   // 锁：当程序设置 scrollTop 时忽略事件，防止循环
 
         function setupSyncScroll() {
             const editor = textareaRef.value;
             const preview = previewRef.value;
             if (!editor || !preview) return () => {};
 
+            // 按滚动比例把一侧的位置映射到另一侧
+            function syncTo(ratio, target) {
+                const max = target.scrollHeight - target.clientHeight;
+                syncLock = true;
+                target.scrollTop = ratio * Math.max(max, 0);
+                syncLock = false;
+            }
+
+            // 编辑 → 预览
             function onEditorScroll() {
                 if (syncLock) return;
                 const maxScrollTop = editor.scrollHeight - editor.clientHeight;
                 if (maxScrollTop <= 0) return;
-                const ratio = editor.scrollTop / maxScrollTop;
-                const previewMax = preview.scrollHeight - preview.clientHeight;
-                syncLock = true;
-                preview.scrollTop = ratio * Math.max(previewMax, 0);
-                syncLock = false;
+                syncTo(editor.scrollTop / maxScrollTop, preview);
+            }
+
+            // 预览 → 编辑
+            function onPreviewScroll() {
+                if (syncLock) return;
+                const maxScrollTop = preview.scrollHeight - preview.clientHeight;
+                if (maxScrollTop <= 0) return;
+                syncTo(preview.scrollTop / maxScrollTop, editor);
             }
 
             editor.addEventListener('scroll', onEditorScroll, { passive: true });
-            return () => editor.removeEventListener('scroll', onEditorScroll);
+            preview.addEventListener('scroll', onPreviewScroll, { passive: true });
+            return () => {
+                editor.removeEventListener('scroll', onEditorScroll);
+                preview.removeEventListener('scroll', onPreviewScroll);
+            };
         }
 
         let cleanupSync = null;
