@@ -1,4 +1,4 @@
-import { createApp, ref, watch, nextTick, onMounted, onBeforeUnmount } from 'vue';
+import { createApp, ref, computed, watch, nextTick, onMounted, onBeforeUnmount } from 'vue';
 import { parseMarkdown, renderMathElements } from './renderer.js';
 import { createEditorHelpers } from './editor.js';
 import { saveDraft, loadDraft, clearDraft, formatDraftTime } from './draft.js';
@@ -47,6 +47,22 @@ const app = createApp({
 
         // 未保存确认弹窗的显示状态
         const showUnsavedModal = ref(false);
+
+        // ---------- 状态栏 ----------
+        const cursorLine = ref(1);
+        const cursorCol = ref(1);
+        const lineCount = computed(() => markdownContent.value.split('\n').length);
+        const charCount = computed(() => markdownContent.value.length);
+
+        // 根据光标位置计算行列（由 textarea 的 input/keyup/click/select 触发）
+        function updateCursorPos() {
+            const ta = textareaRef.value;
+            if (!ta) return;
+            const pos = ta.selectionStart;
+            const before = markdownContent.value.slice(0, pos);
+            cursorLine.value = (before.match(/\n/g) || []).length + 1;
+            cursorCol.value = pos - before.lastIndexOf('\n');
+        }
 
         // 文件句柄与待执行的打开操作（普通对象容器，供 open.js / save.js 共享）
         const fileHandle = { value: null };
@@ -250,6 +266,7 @@ const app = createApp({
 
             await nextTick();
             renderMathElements(previewRef.value);
+            updateCursorPos();
             cleanupSync = setupSyncScroll();
             cleanupDragDrop = setupDragDrop();
             document.addEventListener('keydown', handleGlobalKeydown);
@@ -276,6 +293,12 @@ const app = createApp({
             previewRef,
             fileInput,
             currentFileName,
+            isDirty,
+            cursorLine,
+            cursorCol,
+            lineCount,
+            charCount,
+            updateCursorPos,
             showUnsavedModal,
             openFile,
             handleFileChange,
