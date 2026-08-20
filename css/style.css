@@ -71,6 +71,8 @@ body {
     flex-wrap: wrap;
 }
 
+/* ========== 按钮样式 ========== */
+
 .btn {
     display: inline-flex;
     align-items: center;
@@ -85,6 +87,18 @@ body {
     white-space: nowrap;
     font-family: var(--font-sans);
     letter-spacing: 0.01em;
+}
+
+.btn-github {
+    background: #000;
+    color: #fff;
+    border-color: #000;
+}
+
+.btn-github:hover {
+    background: #1a1a1a;
+    border-color: #1a1a1a;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
 }
 
 .btn-export {
@@ -208,7 +222,7 @@ body {
     word-wrap: break-word;
 }
 
-/* Markdown 预览基础样式 */
+/* ========== Markdown 预览基础样式 ========== */
 .preview-content h1,
 .preview-content h2,
 .preview-content h3,
@@ -305,19 +319,6 @@ body {
     .btn-outline { font-size: 11px; padding: 5px 10px; }
     .divider { display: none; }
     .statusbar { gap: 8px; padding: 4px 12px; font-size: 11px; }
-}
-
-/* ========== GitHub 按钮 ========== */
-.btn-github {
-    background: #000;
-    color: #fff;
-    border-color: #000;
-}
-
-.btn-github:hover {
-    background: #1a1a1a;
-    border-color: #1a1a1a;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
 }
 
 /* ========== 状态栏 ========== */
