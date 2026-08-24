@@ -51,8 +51,15 @@
 
 ```
 ├── index.html # 主页面
-├── css
-|   └── style.css # 自定义样式
+├── css # 样式（按元素种类拆分）
+|   ├── base.css # 页面骨架
+|   ├── toolbar.css # 工具栏与按钮
+|   ├── editor.css # 编辑区
+|   ├── preview.css # 预览区与 Markdown 内容样式
+|   ├── statusbar.css # 状态栏
+|   ├── modal.css # 未保存确认弹窗
+|   ├── responsive.css # 响应式布局
+|   └── print.css # 打印样式
 ├── js
 |   ├── main.js # 主 JavaScript 文件（应用逻辑与各模块接线）
 |   ├── renderer.js # 渲染器（Markdown 解析、代码高亮、KaTeX 公式渲染）

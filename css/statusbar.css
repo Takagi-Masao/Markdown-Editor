@@ -1,0 +1,29 @@
+/* ========== 状态栏 ========== */
+
+.statusbar {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 5px 20px;
+    background: var(--toolbar-bg);
+    border-top: 1px solid var(--border);
+    font-size: 12px;
+    color: var(--text-secondary);
+    flex-shrink: 0;
+    user-select: none;
+    white-space: nowrap;
+}
+
+.status-item {
+    display: inline-flex;
+    align-items: center;
+}
+
+.status-dirty {
+    color: #e8590c;
+    margin-left: 2px;
+}
+
+.statusbar-spacer {
+    flex: 1;
+}

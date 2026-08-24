@@ -1,0 +1,115 @@
+/* ========== 打印样式 ========== */
+
+@media print {
+    @page {
+        size: A4;
+        margin: 18mm 16mm; /* 设置舒适边距 */
+    }
+
+    body {
+        padding: 0 !important;
+        margin: 0 !important;
+        background: #fff !important;
+        font-size: 13px;
+        line-height: 1.6;
+        display: block !important;
+        height: auto !important;
+        min-height: auto !important;
+        overflow: visible !important;
+    }
+
+    #app {
+        display: block !important;
+        height: auto !important;
+        min-height: auto !important;
+        overflow: visible !important;
+        box-shadow: none;
+        border-radius: 0;
+        background: #fff;
+        padding: 0 !important;
+    }
+
+    .toolbar {
+        display: none !important;
+    }
+
+    .statusbar {
+        display: none !important;
+    }
+
+    .editor-main {
+        display: block !important;
+        height: auto !important;
+        overflow: visible !important;
+    }
+
+    .editor-pane {
+        display: none !important;
+    }
+
+    .preview-pane {
+        display: block !important;
+        width: 100% !important;
+        height: auto !important;
+        overflow: visible !important;
+        border: none !important;
+    }
+
+    .preview-pane .pane-header {
+        display: none !important;
+    }
+
+    .preview-content {
+        display: block !important;
+        height: auto !important;
+        max-height: none !important;
+        overflow: visible !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        font-size: 13px;
+        line-height: 1.65;
+        color: #000;
+    }
+
+    .preview-content * {
+        page-break-inside: auto;
+    }
+
+    .preview-content h1,
+    .preview-content h2,
+    .preview-content h3 {
+        page-break-after: avoid;
+    }
+
+    .preview-content pre {
+        max-height: none !important;
+        height: auto !important;
+        overflow: visible !important;
+        white-space: pre-wrap !important;
+        word-break: break-word !important;
+        overflow-wrap: break-word !important;
+        page-break-inside: auto !important;
+        background: #f9f9f9 !important;
+        border: 1px solid #ddd !important;
+    }
+
+    .preview-content pre code {
+        white-space: pre-wrap !important;
+        word-break: break-word !important;
+        overflow-wrap: break-word !important;
+    }
+
+    .preview-content blockquote {
+        background: #fafafa !important;
+        border-left-color: #ccc !important;
+    }
+
+    .preview-content table {
+        page-break-inside: avoid;
+    }
+
+    .preview-content a {
+        color: #000;
+        text-decoration: underline;
+    }
+}

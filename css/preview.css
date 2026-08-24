@@ -1,0 +1,109 @@
+/* ========== 预览区 ========== */
+
+.preview-pane {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    background: var(--preview-bg);
+}
+
+.preview-pane .pane-header {
+    padding: 8px 16px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-secondary);
+    background: #f9fafb;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+    user-select: none;
+}
+
+.preview-content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 24px 28px;
+    font-family: var(--font-sans);
+    font-size: 15px;
+    line-height: 1.75;
+    color: #24292f;
+    word-wrap: break-word;
+}
+
+/* ========== Markdown 预览基础样式 ========== */
+.preview-content h1,
+.preview-content h2,
+.preview-content h3,
+.preview-content h4,
+.preview-content h5,
+.preview-content h6 {
+    margin-top: 1.5em;
+    margin-bottom: 0.5em;
+    font-weight: 600;
+    line-height: 1.3;
+    color: #1a1a2e;
+}
+.preview-content h1 { font-size: 1.8em; border-bottom: 1px solid #e8ecf1; padding-bottom: 0.3em; }
+.preview-content h2 { font-size: 1.45em; border-bottom: 1px solid #e8ecf1; padding-bottom: 0.25em; }
+.preview-content h3 { font-size: 1.2em; }
+.preview-content h4 { font-size: 1.05em; }
+.preview-content p { margin-bottom: 1em; }
+.preview-content a { color: var(--accent); text-decoration: none; }
+.preview-content a:hover { text-decoration: underline; }
+.preview-content strong { font-weight: 600; }
+
+.preview-content blockquote {
+    margin: 1em 0;
+    padding: 0.6em 1em;
+    border-left: 4px solid #d0d7de;
+    background: #f8f9fb;
+    border-radius: 0 6px 6px 0;
+    color: #57606a;
+}
+
+.preview-content blockquote p:last-child { margin-bottom: 0; }
+
+.preview-content code {
+    font-family: var(--font-mono);
+    font-size: 0.88em;
+    background: #f3f4f6;
+    padding: 0.15em 0.4em;
+    border-radius: 4px;
+    color: #d63384;
+}
+
+.preview-content pre {
+    margin: 1em 0;
+    padding: 16px 20px;
+    background: #f6f8fa;
+    border: 1px solid #e4e7ec;
+    border-radius: 8px;
+    overflow: auto;
+    font-size: 13px;
+    line-height: 1.55;
+    max-height: 400px;
+}
+
+.preview-content pre code {
+    background: transparent;
+    padding: 0;
+    color: inherit;
+    font-size: inherit;
+    border-radius: 0;
+    white-space: pre;
+}
+
+.preview-content ul,
+.preview-content ol { margin: 0.8em 0; padding-left: 1.8em; }
+.preview-content li { margin-bottom: 0.3em; }
+.preview-content table { width: 100%; border-collapse: collapse; margin: 1em 0; font-size: 0.9em; }
+.preview-content th,
+.preview-content td { border: 1px solid #d0d7de; padding: 8px 14px; text-align: left; }
+.preview-content th { background: #f6f8fa; font-weight: 600; }
+.preview-content tr:nth-child(even) { background: #fafbfc; }
+.preview-content img { max-width: 100%; border-radius: 6px; }
+.preview-content hr { border: none; border-top: 2px solid #e4e7ec; margin: 1.5em 0; }
+.preview-content input[type="checkbox"] { margin-right: 0.4em; accent-color: var(--accent); }
+.preview-content .katex { font-size: 1.1em; }

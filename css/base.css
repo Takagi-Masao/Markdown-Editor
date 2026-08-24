@@ -1,0 +1,47 @@
+/* ========== 基础样式：变量、重置、页面骨架 ========== */
+
+:root {
+    --bg: #f5f7fa;
+    --surface: #ffffff;
+    --border: #e4e7ec;
+    --text: #1a1a2e;
+    --text-secondary: #6b7280;
+    --accent: #2d7aff;
+    --accent-hover: #1a5fd0;
+    --toolbar-bg: #fafbfc;
+    --editor-bg: #fefefe;
+    --preview-bg: #ffffff;
+    --shadow: 0 8px 30px rgba(0, 0, 0, 0.08);
+    --radius: 12px;
+    --font-mono: 'SF Mono', 'Fira Code', 'Consolas', 'Monaco', 'Courier New', monospace;
+    --font-sans: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+    --transition: 0.2s ease;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: var(--font-sans);
+    background: var(--bg);
+    padding: 20px;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    color: var(--text);
+    -webkit-font-smoothing: antialiased;
+}
+
+#app {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    background: var(--surface);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    overflow: hidden;
+    min-height: 0;
+}
