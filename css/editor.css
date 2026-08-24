@@ -28,18 +28,63 @@
     user-select: none;
 }
 
-.editor-pane textarea {
+.editor-body {
     flex: 1;
+    display: flex;
+    min-height: 0;
+    background: var(--editor-bg);
+    /* 行号列宽 = textarea 左内边距（镜像行号 span 恰好占据这一列） */
+    --gutter: 60px;
+}
+
+.editor-wrap {
+    flex: 1;
+    position: relative;
+    min-width: 0;
+    overflow: hidden;
+}
+
+/* 排版镜像：与 textarea 同宽同字体同内边距，行号可见、源文本透明仅参与排版。
+   行号随文本流由引擎定位（换行时自动对齐各源行开头），无需任何测量。 */
+.editor-mirror {
+    position: absolute;
+    top: 0;
+    left: 0;
+    white-space: pre-wrap;
+    overflow-wrap: break-word;
+    pointer-events: none;
+    user-select: none;
+}
+
+/* 行号 span：用负左边距把行号拉回 textarea 的左内边距区（[0, --gutter)），
+   使其不遮挡文本；宽度 + 右间距 = --gutter，透明文本因此恰好从
+   textarea 的文本起始列（padding-left）开始，折行行为完全一致。 */
+.editor-mirror .ln {
+    display: inline-block;
+    width: calc(var(--gutter) - 16px);
+    margin-left: calc(-1 * var(--gutter));
+    margin-right: 16px;
+    text-align: right;
+    color: #b0b8c4;
+}
+
+.editor-mirror .lt {
+    color: transparent;
+}
+
+.editor-pane textarea {
+    position: relative;      /* 保证绘制在镜像层之上 */
     width: 100%;
+    height: 100%;
     border: none;
     outline: none;
     resize: none;
-    padding: 20px;
+    padding: 20px 20px 20px var(--gutter);
     font-family: var(--font-mono);
     font-size: 14px;
     line-height: 1.7;
     color: var(--text);
-    background: var(--editor-bg);
+    background: transparent; /* 透明背景，让镜像行号透出 */
     tab-size: 2;
     -moz-tab-size: 2;
     min-height: 0;
@@ -47,8 +92,4 @@
 
 .editor-pane textarea::placeholder {
     color: #c0c7cf;
-}
-
-.editor-pane textarea:focus {
-    background: #fefefe;
 }

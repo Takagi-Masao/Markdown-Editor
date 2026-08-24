@@ -66,6 +66,16 @@
                     行内代码
                 </button>
 
+                <button class="btn btn-outline" @click="toggleWrap" :class="{ 'btn-active': wrapEnabled }" :title="wrapEnabled ? '自动换行已开启，点击关闭' : '自动换行已关闭（行号与当前行高亮更精确），点击开启'">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M4 7h16" />
+                        <path d="M4 12h16" />
+                        <path d="M4 17h9" />
+                        <path d="M16 17l2 2 3-4" />
+                    </svg>
+                    自动换行
+                </button>
+
                 <span class="divider"></span>
 
                 <button class="btn btn-export" @click="saveFile" title="保存 Markdown（Ctrl+S）">
@@ -101,15 +111,21 @@
         <div class="editor-main">
             <div class="editor-pane">
                 <div class="pane-header">✏️ 编辑</div>
-                <textarea
-                    ref="textareaRef"
-                    v-model="markdownContent"
-                    placeholder="在此输入 Markdown 内容……"
-                    @input="updateCursorPos"
-                    @keyup="updateCursorPos"
-                    @click="updateCursorPos"
-                    @select="updateCursorPos"
-                ></textarea>
+                <div class="editor-body">
+                    <div class="editor-wrap">
+                        <div class="editor-mirror" ref="mirrorRef" aria-hidden="true"></div>
+                        <textarea
+                            ref="textareaRef"
+                            v-model="markdownContent"
+                            :wrap="wrapEnabled ? 'soft' : 'off'"
+                            placeholder="在此输入 Markdown 内容……"
+                            @input="onEditorInput"
+                            @keyup="onEditorCaretMove"
+                            @click="onEditorCaretMove"
+                            @select="onEditorCaretMove"
+                        ></textarea>
+                    </div>
+                </div>
             </div>
             <div class="preview-pane">
                 <div class="pane-header">👁️ 预览</div>

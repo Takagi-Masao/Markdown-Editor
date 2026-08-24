@@ -81,6 +81,13 @@
     color: var(--text);
 }
 
+/* 开关类按钮的激活态（如自动换行） */
+.btn-active {
+    background: #e8f0fe;
+    border-color: var(--accent);
+    color: var(--accent);
+}
+
 .btn svg {
     flex-shrink: 0;
 }
