@@ -1,18 +1,19 @@
 import { createApp, ref, computed, watch, nextTick, onMounted, onBeforeUnmount } from 'vue';
-import { parseMarkdown, renderMathElements } from './renderer.js';
+import { parseMarkdown, renderMathElements } from './render.js';
 import { createEditorHelpers, createEditorFeatures } from './editor.js';
 import { saveDraft, loadDraft, clearDraft, formatDraftTime } from './draft.js';
 import { createOpenHelpers } from './open.js';
 import { createSaveHelpers } from './save.js';
+import { createPrintHelpers } from './print.js';
 
 const DEFAULT_CONTENT = `# 欢迎使用 Markdown 编辑器
 
 这是一段 **Markdown** 示例，你可以在这里尽情编辑。
 
-## 功能特性
-- 实时预览
-- 工具栏支持
-- 导出 PDF（点击右上角按钮）
+## 使用须知
+- 导出 pdf 时，关闭浏览器自带的黑色页眉页脚。
+- 除非参与开发，需要刷新页面查看效果，否则尽量不要平白无故刷新，并且在刷新前及时保存。
+- 用 Edge/Chrome 等浏览器打开，体验最佳。
 
 $$
 e^{i \\pi} + 1 = 0
@@ -168,27 +169,16 @@ const app = createApp({
         let cleanupSync = null;
         let cleanupDragDrop = null;
 
-        // ---------- 导出 PDF ----------
-        function exportPDF() {
-            // 生成 PDF 时，将页面标题临时改为当前文件名或 untitled.pdf，打印完成后再恢复
-            const baseName = currentFileName.value
-                ? currentFileName.value.replace(/\.[^/.]+$/, '') + '.pdf'
-                : 'untitled.pdf';
-            const oldTitle = document.title;
-            document.title = baseName;
-
-            // 若有尚未触发的防抖渲染，立即刷新预览，保证打印内容是最新的
-            clearTimeout(renderTimer);
-            renderedHtml.value = parseMarkdown(markdownContent.value);
-
-            // 等待 Vue 更新 DOM 后再打印
-            nextTick(() => {
-                renderMathElements(previewRef.value);
-                window.print();
-                // 打印完成后恢复标题
-                document.title = oldTitle;
-            });
-        }
+        // ---------- 打印 / PDF 导出（独立模块，见 print.js） ----------
+        const printHelpers = createPrintHelpers({
+            currentFileName,
+            previewRef,
+            flushPreview: () => {
+                clearTimeout(renderTimer);
+                renderedHtml.value = parseMarkdown(markdownContent.value);
+            },
+        });
+        const { printSettings, showPrintSettings, openPrintSettings, closePrintSettings, exportPDF } = printHelpers;
 
         // ---------- 全局键盘快捷键 ----------
         function handleGlobalKeydown(e) {
@@ -314,6 +304,8 @@ const app = createApp({
             cursorCol,
             lineCount,
             charCount,
+            printSettings,
+            showPrintSettings,
             onEditorInput,
             updateCursorPos,
             toggleWrap,
@@ -324,6 +316,8 @@ const app = createApp({
             insertItalic,
             insertCode,
             saveFile,
+            openPrintSettings,
+            closePrintSettings,
             exportPDF,
         };
     },

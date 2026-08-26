@@ -32,3 +32,57 @@
     justify-content: flex-end;
     flex-wrap: wrap;
 }
+
+/* ========== 打印设置弹窗 ========== */
+.print-settings {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 18px;
+}
+
+.setting-row {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    font-size: 13px;
+    color: var(--text);
+}
+
+.setting-row label {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    cursor: pointer;
+}
+
+.setting-row input[type="checkbox"] {
+    accent-color: var(--accent);
+}
+
+.setting-label {
+    width: 32px;
+    color: var(--text-secondary);
+    flex-shrink: 0;
+}
+
+.setting-input {
+    padding: 6px 10px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-size: 13px;
+    font-family: var(--font-sans);
+    color: var(--text);
+    outline: none;
+    box-sizing: border-box;
+}
+
+.setting-input:focus {
+    border-color: var(--accent);
+}
+
+.setting-hint {
+    font-size: 12px;
+    color: var(--text-secondary);
+    line-height: 1.5;
+}

@@ -1,9 +1,14 @@
 /* ========== 打印样式 ========== */
 
 @media print {
+    /* 页眉/页脚/页码的 margin boxes 由 JS 在打印前动态生成
+       （见 main.js exportPDF），把动态字符串直接嵌入静态 content，
+       兼容不支持 content: var() 的浏览器；@page margin boxes 由浏览器
+       逐页排版，天然避免与正文重叠，且各角内容基线统一。 */
     @page {
         size: A4;
-        margin: 18mm 16mm; /* 设置舒适边距 */
+        /* 上下为页眉/页脚留出空间 */
+        margin: 14mm 14mm 14mm 14mm;
     }
 
     body {

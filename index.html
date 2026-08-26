@@ -76,6 +76,15 @@
                     自动换行
                 </button>
 
+                <button class="btn btn-outline" @click="openPrintSettings" title="设置打印页眉页脚">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M6 9V2h12v7" />
+                        <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
+                        <rect x="6" y="14" width="12" height="8" />
+                    </svg>
+                    打印设置
+                </button>
+
                 <span class="divider"></span>
 
                 <button class="btn btn-export" @click="saveFile" title="保存 Markdown（Ctrl+S）">
@@ -155,6 +164,30 @@
                     <button class="btn btn-export" @click="handleUnsavedChoice(true)">保存</button>
                     <button class="btn btn-outline" @click="handleUnsavedChoice(false)">不保存</button>
                     <button class="btn btn-outline" @click="handleUnsavedChoice(null)">取消</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 打印页眉页脚设置弹窗 -->
+        <div v-if="showPrintSettings" class="modal-overlay" @click.self="closePrintSettings">
+            <div class="modal">
+                <p class="modal-text">打印页眉页脚设置</p>
+                <div class="print-settings">
+                    <div class="setting-row">
+                        <span class="setting-label">页眉</span>
+                        <label><input type="checkbox" v-model="printSettings.showTime" /> 时间</label>
+                        <label><input type="checkbox" v-model="printSettings.showTitle" /> 标题</label>
+                    </div>
+                    <input class="setting-input" v-model="printSettings.headerText" placeholder="自定义页眉文本（居中显示）" />
+                    <div class="setting-row">
+                        <span class="setting-label">页脚</span>
+                        <label><input type="checkbox" v-model="printSettings.showUrl" /> 地址</label>
+                    </div>
+                    <input class="setting-input" v-model="printSettings.footerText" placeholder="自定义页脚文本（居中显示）" />
+                    <p class="setting-hint">页码固定显示在页脚右侧。<strong>请务必在打印预览界面点击「更多设置」→「选项」，取消勾选「页眉和页脚」</strong>——浏览器自带的黑色时间/标题/网址/页码无法用代码关闭，不取消会与本页眉页脚重复。</p>
+                </div>
+                <div class="modal-actions">
+                    <button class="btn btn-export" @click="closePrintSettings">确定</button>
                 </div>
             </div>
         </div>
