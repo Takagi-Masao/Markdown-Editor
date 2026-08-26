@@ -56,22 +56,23 @@
 
 ```
 ├── index.html # 主页面
-├── css # 样式（按元素种类拆分）
+├── css # 样式
 |   ├── base.css # 页面骨架
 |   ├── toolbar.css # 工具栏与按钮
 |   ├── editor.css # 编辑区
 |   ├── preview.css # 预览区与 Markdown 内容样式
 |   ├── statusbar.css # 状态栏
-|   ├── modal.css # 未保存确认弹窗
+|   ├── modal.css # 弹窗
 |   ├── responsive.css # 响应式布局
 |   └── print.css # 打印样式
 ├── js
 |   ├── main.js # 主 JavaScript 文件（应用逻辑与各模块接线）
-|   ├── renderer.js # 渲染器（Markdown 解析、代码高亮、KaTeX 公式渲染）
-|   ├── open.js # 文件打开（文件选择器、拖拽、未保存确认）
-|   ├── save.js # 文件保存（三种方案）
-|   ├── editor.js # 编辑器（选区插入等辅助功能）
-|   └── draft.js # 草稿自动保存（localStorage）
+|   ├── render.js # 渲染器（Markdown 解析、代码高亮、KaTeX 公式渲染）
+|   ├── open.js # 文件打开
+|   ├── save.js # Markdown 保存
+|   ├── print.js # pdf 导出
+|   ├── editor.js # 编辑器及其增强功能
+|   └── draft.js # 草稿自动保存
 ├── LICENSE # 许可证文件
 └── README.md # 本文件
 ```
