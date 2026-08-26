@@ -72,6 +72,19 @@
     color: transparent;
 }
 
+/* 当前行高亮条：块级元素（几何确定），位于镜像之上、textarea 之下。
+   位置与高度由 JS 依据镜像流中当前行 .lt 元素的并集盒（getBoundingClientRect）
+   设置——与行号同源，行号正确则高亮必然正确；left/right 撑满整行宽，
+   天然覆盖行号列。 */
+.line-highlight {
+    position: absolute;
+    left: 0;
+    right: 0;
+    display: none;
+    background: rgba(45, 122, 255, 0.07);
+    pointer-events: none;
+}
+
 .editor-pane textarea {
     position: relative;      /* 保证绘制在镜像层之上 */
     width: 100%;

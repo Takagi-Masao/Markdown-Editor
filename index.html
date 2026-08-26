@@ -114,15 +114,16 @@
                 <div class="editor-body">
                     <div class="editor-wrap">
                         <div class="editor-mirror" ref="mirrorRef" aria-hidden="true"></div>
+                        <div class="line-highlight" ref="lineHighlightRef" aria-hidden="true"></div>
                         <textarea
                             ref="textareaRef"
                             v-model="markdownContent"
                             :wrap="wrapEnabled ? 'soft' : 'off'"
                             placeholder="在此输入 Markdown 内容……"
                             @input="onEditorInput"
-                            @keyup="onEditorCaretMove"
-                            @click="onEditorCaretMove"
-                            @select="onEditorCaretMove"
+                            @keyup="updateCursorPos"
+                            @click="updateCursorPos"
+                            @select="updateCursorPos"
                         ></textarea>
                     </div>
                 </div>

@@ -1,6 +1,6 @@
 import { createApp, ref, computed, watch, nextTick, onMounted, onBeforeUnmount } from 'vue';
 import { parseMarkdown, renderMathElements } from './renderer.js';
-import { createEditorHelpers } from './editor.js';
+import { createEditorHelpers, createEditorFeatures } from './editor.js';
 import { saveDraft, loadDraft, clearDraft, formatDraftTime } from './draft.js';
 import { createOpenHelpers } from './open.js';
 import { createSaveHelpers } from './save.js';
@@ -35,6 +35,7 @@ const app = createApp({
         const fileInput = ref(null);
         const currentFileName = ref(null);
         const mirrorRef = ref(null);
+        const lineHighlightRef = ref(null);
         // 自动换行开关（默认关闭；状态持久化）
         let initialWrap = false;
         try { initialWrap = localStorage.getItem('md-editor:wrap') === 'on'; } catch (e) { /* 忽略存储异常 */ }
@@ -48,7 +49,7 @@ const app = createApp({
         const isDirty = ref(false);
         watch(markdownContent, () => {
             isDirty.value = true;
-            scheduleEditorRefresh();
+            editorFeatures?.scheduleRender();
         }, { flush: 'sync' });
 
         // 未保存确认弹窗的显示状态
@@ -60,116 +61,18 @@ const app = createApp({
         const lineCount = computed(() => markdownContent.value.split('\n').length);
         const charCount = computed(() => markdownContent.value.length);
 
-        // 根据光标位置计算行列（由 textarea 的 input/keyup/click/select 触发）
-        function updateCursorPos() {
-            const ta = textareaRef.value;
-            if (!ta) return;
-            const pos = ta.selectionStart;
-            const before = markdownContent.value.slice(0, pos);
-            cursorLine.value = (before.match(/\n/g) || []).length + 1;
-            cursorCol.value = pos - before.lastIndexOf('\n');
-        }
-
-        // ---------- 编辑器增强：行号（排版镜像 + 行内编号，零测量误差） ----------
-        // 原理：镜像层与 textarea 同宽、同字体、同内边距，源文本逐行渲染为
-        // 「行号 span + 透明文本 span」。行号列宽（--gutter）恰好等于 textarea 的
-        // 左内边距，因此透明文本的起始列与 textarea 完全一致；折行由浏览器引擎
-        // 按同一规则计算，行号自动落在每个源行的开头左侧。无需逐行测量视觉行数，
-        // 不存在累积误差，空行/长行/混排全部天然正确。
-        let editorRaf = null;
-
-        // 转义文本（镜像用 innerHTML 构建）
-        function escapeHtml(s) {
-            return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-        }
-
-        // 渲染镜像：行号（可见）+ 源文本（透明，仅参与排版）
-        function renderMirror() {
-            const mirror = mirrorRef.value;
-            const ta = textareaRef.value;
-            if (!mirror || !ta) return;
-            const style = getComputedStyle(ta);
-            mirror.style.width = ta.clientWidth + 'px';
-            mirror.style.fontFamily = style.fontFamily;
-            mirror.style.fontSize = style.fontSize;
-            mirror.style.fontWeight = style.fontWeight;
-            mirror.style.fontStyle = style.fontStyle;
-            mirror.style.lineHeight = style.lineHeight;
-            mirror.style.letterSpacing = style.letterSpacing;
-            mirror.style.wordSpacing = style.wordSpacing;
-            mirror.style.overflowWrap = style.overflowWrap;
-            mirror.style.wordBreak = style.wordBreak;
-            mirror.style.lineBreak = style.lineBreak;
-            mirror.style.tabSize = style.tabSize;
-            mirror.style.textIndent = style.textIndent;
-            mirror.style.paddingTop = style.paddingTop;
-            mirror.style.paddingRight = style.paddingRight;
-            mirror.style.paddingBottom = style.paddingBottom;
-            mirror.style.paddingLeft = style.paddingLeft;
-            // 换行开关决定镜像是否折行（与 textarea 的 wrap 属性保持一致）
-            mirror.style.whiteSpace = wrapEnabled.value ? 'pre-wrap' : 'pre';
-
-            const lines = markdownContent.value.split('\n');
-            const parts = [];
-            for (let i = 0; i < lines.length; i++) {
-                parts.push(`<span class="ln">${i + 1}</span><span class="lt">${escapeHtml(lines[i])}</span>`);
-                parts.push('\n');
-            }
-            mirror.innerHTML = parts.join('');
-        }
-
-        // 刷新编辑器视图（rAF 合并，内容、换行开关或窗口尺寸变化后调用）
-        function refreshEditorView() {
-            renderMirror();
-            updateCursorPos();
-        }
-        function scheduleEditorRefresh() {
-            if (editorRaf) return;
-            editorRaf = requestAnimationFrame(() => {
-                editorRaf = null;
-                refreshEditorView();
-            });
-        }
-
-        // 输入事件（内容变化）：更新行列 + 重排镜像
-        function onEditorInput() {
-            updateCursorPos();
-            scheduleEditorRefresh();
-        }
-
-        // 光标移动事件（keyup/click/select）：只更新行列
-        function onEditorCaretMove() {
-            updateCursorPos();
-        }
-
-        // 切换自动换行（行号与文本流同步，无需重测）
-        function toggleWrap() {
-            wrapEnabled.value = !wrapEnabled.value;
-            try {
-                localStorage.setItem('md-editor:wrap', wrapEnabled.value ? 'on' : 'off');
-            } catch (e) { /* 忽略存储异常 */ }
-            nextTick(refreshEditorView);
-        }
-
-        // 镜像跟随 textarea 垂直滚动；窗口尺寸变化时重排
-        function setupEditorExtras() {
-            const ta = textareaRef.value;
-            const mirror = mirrorRef.value;
-            if (!ta || !mirror) return () => {};
-            function onScroll() {
-                mirror.style.transform = `translateY(${-ta.scrollTop}px)`;
-            }
-            function onResize() {
-                scheduleEditorRefresh();
-            }
-            ta.addEventListener('scroll', onScroll, { passive: true });
-            window.addEventListener('resize', onResize);
-            return () => {
-                ta.removeEventListener('scroll', onScroll);
-                window.removeEventListener('resize', onResize);
-            };
-        }
-        let cleanupEditorExtras = null;
+        // ---------- 编辑器增强（行号镜像、当前行高亮、光标行列、自动换行）----------
+        // 实现在 editor.js 的 createEditorFeatures 中，此处仅接线
+        const editorFeatures = createEditorFeatures({
+            markdownContent,
+            textareaRef,
+            mirrorRef,
+            lineHighlightRef,
+            wrapEnabled,
+            cursorLine,
+            cursorCol,
+        });
+        const { updateCursorPos, onEditorInput, toggleWrap } = editorFeatures;
 
         // 文件句柄与待执行的打开操作（普通对象容器，供 open.js / save.js 共享）
         const fileHandle = { value: null };
@@ -373,20 +276,19 @@ const app = createApp({
 
             await nextTick();
             renderMathElements(previewRef.value);
+            editorFeatures.mount();
+            editorFeatures.render();
             cleanupSync = setupSyncScroll();
             cleanupDragDrop = setupDragDrop();
-            cleanupEditorExtras = setupEditorExtras();
-            refreshEditorView();
             document.addEventListener('keydown', handleGlobalKeydown);
         });
 
         onBeforeUnmount(() => {
             clearTimeout(renderTimer);
             clearTimeout(draftTimer);
-            if (editorRaf) cancelAnimationFrame(editorRaf);
+            editorFeatures.cleanup();
             if (cleanupSync) cleanupSync();
             if (cleanupDragDrop) cleanupDragDrop();
-            if (cleanupEditorExtras) cleanupEditorExtras();
             document.removeEventListener('keydown', handleGlobalKeydown);
         });
 
@@ -404,16 +306,17 @@ const app = createApp({
             fileInput,
             currentFileName,
             mirrorRef,
+            lineHighlightRef,
             wrapEnabled,
             isDirty,
+            showUnsavedModal,
             cursorLine,
             cursorCol,
             lineCount,
             charCount,
             onEditorInput,
-            onEditorCaretMove,
+            updateCursorPos,
             toggleWrap,
-            showUnsavedModal,
             openFile,
             handleFileChange,
             handleUnsavedChoice,

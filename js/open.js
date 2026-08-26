@@ -131,5 +131,5 @@ export function createOpenHelpers({
         };
     }
 
-    return { openFile, requestLoadFile, handleUnsavedChoice, openFilePicker, loadDroppedFile, handleFileChange, setupDragDrop };
+    return { openFile, handleFileChange, handleUnsavedChoice, setupDragDrop };
 }
