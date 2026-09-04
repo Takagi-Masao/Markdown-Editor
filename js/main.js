@@ -73,7 +73,14 @@ const app = createApp({
             cursorLine,
             cursorCol,
         });
-        const { updateCursorPos, onEditorInput, toggleWrap } = editorFeatures;
+        const {
+            updateCursorPos,
+            onEditorInput,
+            onEditorCompositionStart,
+            onEditorCompositionEnd,
+            onEditorCompositionCancel,
+            toggleWrap,
+        } = editorFeatures;
 
         // 文件句柄与待执行的打开操作（普通对象容器，供 open.js / save.js 共享）
         const fileHandle = { value: null };
@@ -193,6 +200,7 @@ const app = createApp({
             }
 
             const isCtrl = e.ctrlKey || e.metaKey;
+            const isEditorTarget = e.target === textareaRef.value;
 
             // Ctrl + Shift + O ：打开文件
             if (isCtrl && e.shiftKey && (e.key === 'O' || e.key === 'o')) {
@@ -202,7 +210,7 @@ const app = createApp({
             }
 
             // Tab 键：插入两个空格，并阻止焦点转移
-            if (e.key === 'Tab' && !e.shiftKey) {
+            if (e.key === 'Tab' && !e.shiftKey && isEditorTarget) {
                 e.preventDefault();
                 ensureTextareaFocus();
                 insertAtCursor('  ');
@@ -210,7 +218,7 @@ const app = createApp({
             }
 
             // Ctrl + B / Ctrl + I ：加粗 / 斜体
-            if (isCtrl && !e.shiftKey) {
+            if (isCtrl && !e.shiftKey && isEditorTarget) {
                 if (e.key === 'b' || e.key === 'B') {
                     e.preventDefault();
                     ensureTextareaFocus();
@@ -307,6 +315,9 @@ const app = createApp({
             printSettings,
             showPrintSettings,
             onEditorInput,
+            onEditorCompositionStart,
+            onEditorCompositionEnd,
+            onEditorCompositionCancel,
             updateCursorPos,
             toggleWrap,
             openFile,

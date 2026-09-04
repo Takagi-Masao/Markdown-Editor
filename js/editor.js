@@ -122,6 +122,8 @@ export function createEditorFeatures({
     cursorCol,
 }) {
     let editorRaf = null;
+    let compositionRaf = null;
+    let isComposing = false;
     let removeListeners = null;
 
     // 转义文本（镜像用 innerHTML 构建）
@@ -131,11 +133,14 @@ export function createEditorFeatures({
 
     // 根据光标位置计算行列（由 textarea 的 input/keyup/click/select 触发），
     // 并同步当前行高亮。
-    function updateCursorPos() {
+    function updateCursorPos(event) {
         const ta = textareaRef.value;
-        if (!ta) return;
+        // IME 会在 composition 期间报告临时的 selectionStart；此时读取会把
+        // 光标误判到下一行。等 compositionend 后再以最终选区刷新。
+        if (!ta || isComposing || event?.isComposing) return;
         const pos = ta.selectionStart;
-        const before = markdownContent.value.slice(0, pos);
+        // 选区属于 textarea 当前值，不能依赖可能尚未完成同步的 Vue ref。
+        const before = ta.value.slice(0, pos);
         cursorLine.value = (before.match(/\n/g) || []).length + 1;
         cursorCol.value = pos - before.lastIndexOf('\n');
         updateLineHighlight();
@@ -194,7 +199,7 @@ export function createEditorFeatures({
         const parts = [];
         for (let i = 0; i < lines.length; i++) {
             parts.push(`<span class="ln">${i + 1}</span><span class="lt">${escapeHtml(lines[i])}</span>`);
-            parts.push('\n');
+            if (i < lines.length - 1) parts.push('\n');
         }
         mirror.innerHTML = parts.join('');
     }
@@ -208,14 +213,35 @@ export function createEditorFeatures({
         if (editorRaf) return;
         editorRaf = requestAnimationFrame(() => {
             editorRaf = null;
-            refreshEditorView();
+            if (!isComposing) refreshEditorView();
         });
     }
 
     // 输入事件（内容变化）：更新行列 + 重排镜像
-    function onEditorInput() {
-        updateCursorPos();
+    function onEditorInput(event) {
+        updateCursorPos(event);
         scheduleEditorRefresh();
+    }
+
+    function onEditorCompositionStart() {
+        isComposing = true;
+    }
+
+    function onEditorCompositionEnd() {
+        isComposing = false;
+        // compositionend 与 v-model 的最终值同步可能不在同一个任务中，
+        // 因此至少让 Vue 完成一次更新后再安排镜像和光标刷新。
+        nextTick(() => {
+            if (compositionRaf) cancelAnimationFrame(compositionRaf);
+            compositionRaf = requestAnimationFrame(() => {
+                compositionRaf = null;
+                if (!isComposing) refreshEditorView();
+            });
+        });
+    }
+
+    function onEditorCompositionCancel() {
+        onEditorCompositionEnd();
     }
 
     // 切换自动换行（行号与文本流同步，无需重测）
@@ -249,12 +275,16 @@ export function createEditorFeatures({
 
     function cleanup() {
         if (editorRaf) cancelAnimationFrame(editorRaf);
+        if (compositionRaf) cancelAnimationFrame(compositionRaf);
         if (removeListeners) removeListeners();
     }
 
     return {
         updateCursorPos,
         onEditorInput,
+        onEditorCompositionStart,
+        onEditorCompositionEnd,
+        onEditorCompositionCancel,
         toggleWrap,
         render: refreshEditorView,
         scheduleRender: scheduleEditorRefresh,

@@ -53,6 +53,11 @@ function escapeAttr(text) {
 // 避免渲染完成后再次遍历整个预览 DOM，提升大文档性能。
 // 内部任何异常都 return false，让 marked 回退到默认渲染，保证不会拖垮整个预览。
 const customRenderer = {
+    // v-html 会把返回值直接写入 DOM，原始 HTML 必须按文本输出。
+    html(token) {
+        const raw = typeof token === 'string' ? token : (token?.text ?? token?.raw ?? '');
+        return escapeHtml(raw);
+    },
     code(text, lang, escaped) {
         try {
             const langName = (lang || '').split(/\s+/)[0];
@@ -71,7 +76,18 @@ const customRenderer = {
 
 marked.use(mathExtension);
 marked.use({ renderer: customRenderer });
-marked.setOptions({ breaks: true, gfm: true });
+// 预览通过 v-html 插入 DOM，禁止 Markdown 原始 HTML，避免用户输入的
+// 事件属性或其他可执行节点进入页面。
+marked.use({
+    walkTokens(token) {
+        if ((token.type === 'link' || token.type === 'image') &&
+            typeof token.href === 'string' &&
+            /^(?:javascript|vbscript|data):/i.test(token.href.trim())) {
+            token.href = '#';
+        }
+    },
+});
+marked.setOptions({ breaks: true, gfm: true, html: false });
 
 export function parseMarkdown(raw) {
     if (!raw || raw.trim() === '') return '';
