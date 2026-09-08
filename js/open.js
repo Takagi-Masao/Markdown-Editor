@@ -1,115 +1,87 @@
 import { loadFileContent } from './editor.js';
 
-// 文件打开：文件选择器（File System Access API / 隐藏 input 回退）、拖拽打开、
-// 以及打开前的未保存修改确认（保存 / 不保存 / 取消）。
-export function createOpenHelpers({
-    markdownContent,
-    currentFileName,
-    fileInput,
-    isDirty,
-    showUnsavedModal,
-    fileHandle,     // { value: FileSystemFileHandle | null } 容器
-    pendingOpen,    // { value: (() => void) | null } 容器
-    saveFile,       // () => Promise<boolean>
-}) {
-    // 打开入口（工具栏 / Ctrl+Shift+O）：有未保存修改时先弹窗确认
-    async function openFile() {
-        if (isDirty.value) {
-            pendingOpen.value = () => openFilePicker();
+export function createOpenHelpers({ state, fileInput, showUnsavedModal, pendingOpen, saveFile, persist, rememberHandle }) {
+    let openVersion = 0;
+    let inputApproval = null;
+
+    function requestOpen(action) {
+        if (state.isDirty.value) {
+            pendingOpen.value = action;
             showUnsavedModal.value = true;
             return;
         }
-        openFilePicker();
+        return action();
     }
 
-    // 拖拽加载入口：同样先检查未保存修改
-    function requestLoadFile(file) {
-        if (isDirty.value) {
-            pendingOpen.value = () => { loadDroppedFile(file); };
-            showUnsavedModal.value = true;
-            return;
-        }
-        loadDroppedFile(file);
+    function openFile() {
+        return requestOpen(openFilePicker);
     }
 
-    // 未保存修改弹窗按钮：true=保存后继续，false=不保存继续，null=取消
     async function handleUnsavedChoice(choice) {
         showUnsavedModal.value = false;
         const action = pendingOpen.value;
         pendingOpen.value = null;
-        if (choice === null || !action) return;   // 取消
+        if (choice === null || !action) return;
         if (choice === true) {
+            const identity = state.documentId.value;
             const saved = await saveFile();
-            if (!saved) return;                    // 保存被取消或失败，中止打开
+            if (!saved || state.isDirty.value || identity !== state.documentId.value) return;
         }
-        action();
+        return action();
     }
 
-    async function openFilePicker() {
-        // 优先使用 File System Access API（Chrome/Edge）：能拿到文件句柄，之后可原地保存
-        if (window.showOpenFilePicker) {
-            try {
-                const [handle] = await window.showOpenFilePicker({
-                    multiple: false,
-                    types: [{
-                        description: 'Markdown 文件',
-                        accept: { 'text/markdown': ['.md', '.markdown', '.txt'] },
-                    }],
-                });
-                const file = await handle.getFile();
-                await loadDroppedFile(file);
-                fileHandle.value = handle;
-                // 尽量申请读写权限，以便后续 Ctrl+S 原地保存（被拒绝则保存时走另存为）
-                try {
-                    if (handle.queryPermission && (await handle.queryPermission({ mode: 'readwrite' })) !== 'granted') {
-                        if (handle.requestPermission) await handle.requestPermission({ mode: 'readwrite' });
-                    }
-                } catch (e) { /* 权限异常忽略，保存时再走另存为 */ }
-                return;
-            } catch (err) {
-                if (err.name === 'AbortError') return;  // 用户取消选择
-                console.error('无法读取文件:', err);
-                alert('文件读取失败，请重试');
-                return;
-            }
-        }
-        // 回退：隐藏的 file input
-        fileInput.value?.click();
-    }
-
-    // 共享的文件加载逻辑（文件选择 / 拖拽都用它）。
-    // 注意：isDirty 必须等 markdownContent 赋值之后再重置，
-    // 否则同步监听会把刚加载的内容误判为未保存修改。
-    async function loadDroppedFile(file) {
+    async function stageOpen(getFile) {
+        const version = ++openVersion;
+        const before = state.snapshot();
         try {
-            let text = await loadFileContent(file);
-            text = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
-            markdownContent.value = text;
-            currentFileName.value = file.name;
-            document.title = file.name + ' - Markdown 编辑器';
-            isDirty.value = false;
+            const { file, handle } = await getFile();
+            const text = (await loadFileContent(file)).replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+            if (version !== openVersion || before.documentId !== state.documentId.value) return;
+            const commit = () => {
+                if (version !== openVersion || before.documentId !== state.documentId.value) return;
+                state.replaceDocument({ content: text, baseline: text, fileName: file.name }, handle);
+                persist();
+                void rememberHandle(state.documentId.value, handle);
+            };
+            // Edits made during the picker/read need their own discard decision.
+            if (state.markdownContent.value !== before.content) return requestOpen(commit);
+            commit();
         } catch (err) {
+            if (err.name === 'AbortError') return;
             console.error('无法读取文件:', err);
             alert('文件读取失败，请重试');
         }
     }
 
-    async function handleFileChange(event) {
-        const file = event.target.files?.[0];
-        if (!file) return;
-        fileHandle.value = null;  // input 方式拿不到句柄
-        await loadDroppedFile(file);
-        event.target.value = '';
+    function openFilePicker() {
+        if (window.showOpenFilePicker) {
+            return stageOpen(async () => {
+                const [handle] = await window.showOpenFilePicker({
+                    multiple: false,
+                    types: [{ description: 'Markdown 文件', accept: { 'text/markdown': ['.md', '.markdown', '.txt'] } }],
+                });
+                return { file: await handle.getFile(), handle };
+            });
+        }
+        inputApproval = state.snapshot();
+        fileInput.value?.click();
     }
 
-    // 拖拽打开文件
+    async function handleFileChange(event) {
+        const file = event.target.files?.[0];
+        event.target.value = '';
+        const approved = inputApproval;
+        inputApproval = null;
+        if (!file) return;
+        const action = () => stageOpen(async () => ({ file, handle: null }));
+        if (approved?.documentId === state.documentId.value && approved.content === state.markdownContent.value) return action();
+        return requestOpen(action);
+    }
+
     function setupDragDrop() {
         function preventDefault(e) {
             e.preventDefault();
             e.stopPropagation();
-        }
-        function onDragOver(e) {
-            preventDefault(e);
         }
         function onDrop(e) {
             preventDefault(e);
@@ -119,14 +91,12 @@ export function createOpenHelpers({
                 alert('仅支持打开 .md / .markdown / .txt 文件');
                 return;
             }
-            fileHandle.value = null;  // 拖拽方式拿不到句柄
-            requestLoadFile(file);
+            return requestOpen(() => stageOpen(async () => ({ file, handle: null })));
         }
-        // 阻止浏览器直接打开被拖入的文件
-        window.addEventListener('dragover', onDragOver);
+        window.addEventListener('dragover', preventDefault);
         window.addEventListener('drop', onDrop);
         return () => {
-            window.removeEventListener('dragover', onDragOver);
+            window.removeEventListener('dragover', preventDefault);
             window.removeEventListener('drop', onDrop);
         };
     }

@@ -1,7 +1,8 @@
 import { createApp, ref, computed, watch, nextTick, onMounted, onBeforeUnmount } from 'vue';
 import { parseMarkdown, renderMathElements } from './render.js';
 import { createEditorHelpers, createEditorFeatures } from './editor.js';
-import { saveDraft, loadDraft, clearDraft, formatDraftTime } from './draft.js';
+import { saveSession, loadSession, storeFileHandle, loadFileHandle, formatDraftTime } from './draft.js';
+import { createDocumentState } from './document.js';
 import { createOpenHelpers } from './open.js';
 import { createSaveHelpers } from './save.js';
 import { createPrintHelpers } from './print.js';
@@ -12,7 +13,6 @@ const DEFAULT_CONTENT = `# 欢迎使用 Markdown 编辑器
 
 ## 使用须知
 - 导出 pdf 时，关闭浏览器自带的黑色页眉页脚。
-- 除非参与开发，需要刷新页面查看效果，否则尽量不要平白无故刷新，并且在刷新前及时保存。
 - 用 Edge/Chrome 等浏览器打开，体验最佳。
 
 $$
@@ -30,11 +30,11 @@ console.log('Hello, world!');
 
 const app = createApp({
     setup() {
-        const markdownContent = ref(DEFAULT_CONTENT);
+        const state = createDocumentState(DEFAULT_CONTENT, { ref, computed });
+        const { markdownContent, currentFileName, isDirty, fileHandle } = state;
         const textareaRef = ref(null);
         const previewRef = ref(null);
         const fileInput = ref(null);
-        const currentFileName = ref(null);
         const mirrorRef = ref(null);
         const lineHighlightRef = ref(null);
         // 自动换行开关（默认关闭；状态持久化）
@@ -44,12 +44,8 @@ const app = createApp({
 
         const { insertBold, insertItalic, insertCode, insertAtCursor } = createEditorHelpers(markdownContent, textareaRef);
 
-        // ---------- 未保存修改标记 ----------
-        // 同步监听内容变化：任何途径的修改（打字、粘贴、IME、工具栏插入等）都会
-        // 立即置为未保存；加载/保存成功后由 open.js / save.js 显式重置为 false。
-        const isDirty = ref(false);
+        // Dirty is derived from the saved baseline, so undoing all edits becomes clean.
         watch(markdownContent, () => {
-            isDirty.value = true;
             editorFeatures?.scheduleRender();
         }, { flush: 'sync' });
 
@@ -82,8 +78,7 @@ const app = createApp({
             toggleWrap,
         } = editorFeatures;
 
-        // 文件句柄与待执行的打开操作（普通对象容器，供 open.js / save.js 共享）
-        const fileHandle = { value: null };
+        // Pending open is separate from the current document association.
         const pendingOpen = { value: null };
 
         // ---------- 预览渲染（防抖 200ms，避免每次击键都全量解析 + 重渲染） ----------
@@ -98,36 +93,44 @@ const app = createApp({
             }, 200);
         });
 
-        // ---------- 草稿自动保存（防抖 500ms，写入 localStorage） ----------
+        // Persist immediately at lifecycle boundaries and debounce ordinary edits.
         let draftTimer = null;
-        watch(markdownContent, () => {
+        let restoring = false;
+        let preserveDeclinedDraft = false;
+        function persist() {
             clearTimeout(draftTimer);
-            draftTimer = setTimeout(() => {
-                saveDraft(markdownContent.value, currentFileName.value);
-            }, 500);
-        });
+            if (!restoring && !preserveDeclinedDraft) saveSession(state.snapshot());
+        }
+        function persistAction() {
+            preserveDeclinedDraft = false;
+            persist();
+        }
+        watch([markdownContent, currentFileName, state.savedContent, state.documentId], () => {
+            if (restoring) return;
+            preserveDeclinedDraft = false;
+            clearTimeout(draftTimer);
+            draftTimer = setTimeout(persist, 500);
+        }, { flush: 'sync' });
+        watch(currentFileName, name => {
+            document.title = name ? name + ' - Markdown 编辑器' : 'Markdown 编辑器';
+        }, { immediate: true, flush: 'sync' });
+        function onVisibilityChange() {
+            if (document.visibilityState === 'hidden') persist();
+        }
+        function onBeforeUnload(event) {
+            persist();
+            if (isDirty.value) {
+                event.preventDefault();
+                event.returnValue = '';
+            }
+        }
 
-        // ---------- 文件打开 / 保存（拆分为独立模块） ----------
-        const saveHelpers = createSaveHelpers({
-            markdownContent,
-            currentFileName,
-            isDirty,
-            fileHandle,
-            onSaveSuccess: () => {
-                clearTimeout(draftTimer);
-                clearDraft();
-            },
-        });
-
+        const saveHelpers = createSaveHelpers({ state, persist: persistAction, rememberHandle: storeFileHandle });
         const openHelpers = createOpenHelpers({
-            markdownContent,
-            currentFileName,
-            fileInput,
-            isDirty,
-            showUnsavedModal,
-            fileHandle,
-            pendingOpen,
+            state, fileInput, showUnsavedModal, pendingOpen,
             saveFile: saveHelpers.saveFile,
+            persist: persistAction,
+            rememberHandle: storeFileHandle,
         });
 
         const { openFile, handleFileChange, handleUnsavedChoice, setupDragDrop } = openHelpers;
@@ -259,18 +262,30 @@ const app = createApp({
 
         // ---------- 生命周期 ----------
         onMounted(async () => {
-            // 恢复上次未保存的草稿（与默认内容相同则视为无草稿，不打扰）
-            const draft = loadDraft();
-            if (draft && draft.content && draft.content !== DEFAULT_CONTENT) {
+            // Restore text synchronously before awaiting handle lookup or mounting listeners.
+            restoring = true;
+            const { session, draft } = loadSession();
+            let restored = session;
+            if (draft) {
                 const savedTime = formatDraftTime(draft.savedAt) || '未知时间';
-                if (confirm(`检测到未保存的草稿（保存于 ${savedTime}），是否恢复？`)) {
-                    markdownContent.value = draft.content;
-                    currentFileName.value = draft.fileName;
-                    document.title = draft.fileName ? draft.fileName + ' - Markdown 编辑器' : 'Markdown 编辑器';
-                    isDirty.value = true;  // 恢复的内容尚未保存到文件
-                }
-                // 选择不恢复时保留草稿，避免误触导致内容丢失（下次打开仍可恢复）
+                if (confirm(`检测到未保存的草稿（保存于 ${savedTime}），是否恢复？`)) restored = draft;
+                else preserveDeclinedDraft = true;
             }
+            if (restored) state.replaceDocument(restored);
+            restoring = false;
+            persist();
+            if (restored) {
+                const identity = restored.documentId;
+                state.handleRecoveryPending = identity;
+                void loadFileHandle(identity).then(handle => {
+                    if (state.documentId.value === identity && !fileHandle.value) fileHandle.value = handle;
+                }).finally(() => {
+                    if (state.handleRecoveryPending === identity) state.handleRecoveryPending = null;
+                });
+            }
+            window.addEventListener('pagehide', persist);
+            window.addEventListener('beforeunload', onBeforeUnload);
+            document.addEventListener('visibilitychange', onVisibilityChange);
 
             await nextTick();
             renderMathElements(previewRef.value);
@@ -282,6 +297,10 @@ const app = createApp({
         });
 
         onBeforeUnmount(() => {
+            persist();
+            window.removeEventListener('pagehide', persist);
+            window.removeEventListener('beforeunload', onBeforeUnload);
+            document.removeEventListener('visibilitychange', onVisibilityChange);
             clearTimeout(renderTimer);
             clearTimeout(draftTimer);
             editorFeatures.cleanup();
