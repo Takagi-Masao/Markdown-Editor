@@ -8,7 +8,7 @@ import { renderMathElements } from './render.js';
 export function createPrintHelpers({
     currentFileName,
     previewRef,
-    flushPreview,   // () => void：强制刷新预览内容（防抖计时器归 main.js 所有）
+    flushPreview,   // () => void：同步刷新预览 DOM（防抖计时器归 main.js 所有）
 }) {
     // ---------- 打印页眉页脚设置 ----------
     const PRINT_SETTINGS_KEY = 'md-editor:print';
@@ -47,40 +47,64 @@ export function createPrintHelpers({
 }`;
     }
 
-    // 导出 PDF：刷新预览 → 注入页眉页脚样式 → 打印 → 恢复标题
-    function exportPDF() {
-        // 生成 PDF 时，将页面标题临时改为当前文件名或 untitled.pdf，打印完成后再恢复
+    let printSession = null;
+    let exportPending = false;
+
+    // beforeprint is synchronous, including when invoked from the browser menu or Ctrl+P.
+    function preparePrint() {
         const baseName = currentFileName.value
             ? currentFileName.value.replace(/\.[^/.]+$/, '') + '.pdf'
             : 'untitled.pdf';
-        const oldTitle = document.title;
-        document.title = baseName;
-
-        // 若有尚未触发的防抖渲染，立即刷新预览，保证打印内容是最新的
-        flushPreview();
-
-        // 等待 Vue 更新 DOM 后再打印
-        nextTick(() => {
-            renderMathElements(previewRef.value);
-
-            // 按设置生成页眉/页脚/页码样式并注入
+        if (!printSession) {
             const styleEl = document.createElement('style');
             styleEl.id = 'print-header-footer-style';
-            styleEl.textContent = buildPrintHeaderFooterStyle(
-                printSettings.value,
-                formatPrintTime(new Date()),
-                baseName,
-                location.href,
-            );
+            printSession = { oldTitle: document.title, title: baseName, styleEl };
             document.head.appendChild(styleEl);
-
-            window.print();
-
-            // 打印完成后移除样式并恢复标题
-            styleEl.remove();
-            document.title = oldTitle;
-        });
+        }
+        printSession.title = baseName;
+        document.title = baseName;
+        flushPreview();
+        renderMathElements(previewRef.value);
+        printSession.styleEl.textContent = buildPrintHeaderFooterStyle(
+            printSettings.value,
+            formatPrintTime(new Date()),
+            baseName,
+            location.href,
+        );
     }
 
-    return { printSettings, showPrintSettings, openPrintSettings, closePrintSettings, exportPDF };
+    function finishPrint() {
+        if (!printSession) return;
+        printSession.styleEl.remove();
+        if (document.title === printSession.title) document.title = printSession.oldTitle;
+        printSession = null;
+    }
+
+    function setupPrintEvents() {
+        window.addEventListener('beforeprint', preparePrint);
+        window.addEventListener('afterprint', finishPrint);
+        return () => {
+            window.removeEventListener('beforeprint', preparePrint);
+            window.removeEventListener('afterprint', finishPrint);
+            finishPrint();
+        };
+    }
+
+    async function exportPDF() {
+        if (exportPending || printSession) return;
+        exportPending = true;
+        try {
+            await nextTick();
+            preparePrint();
+            window.print();
+            // afterprint owns cleanup: some browsers return while print preview is still open.
+        } catch (err) {
+            finishPrint();
+            throw err;
+        } finally {
+            exportPending = false;
+        }
+    }
+
+    return { printSettings, showPrintSettings, openPrintSettings, closePrintSettings, exportPDF, setupPrintEvents };
 }

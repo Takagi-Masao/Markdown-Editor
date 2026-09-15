@@ -34,6 +34,10 @@
 
                 <span class="divider"></span>
 
+                <button class="btn btn-outline" @click="newFile" title="新建 Markdown 文件（Ctrl+Alt+N）">
+                    <img src="https://cdn.jsdelivr.net/npm/lucide-static@0.468.0/icons/file-plus-2.svg" width="16" height="16" alt="" aria-hidden="true" />
+                    新建
+                </button>
                 <button class="btn btn-outline" @click="openFile" title="打开 Markdown 文件（Ctrl+Shift+O）">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
                         <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
@@ -162,7 +166,7 @@
         <!-- 未保存修改确认弹窗 -->
         <div v-if="showUnsavedModal" class="modal-overlay" @click.self="handleUnsavedChoice(null)">
             <div class="modal">
-                <p class="modal-text">当前文件有未保存的修改，是否保存后再打开新文件？</p>
+                <p class="modal-text">当前文件有未保存的修改，是否保存后再切换文件？</p>
                 <div class="modal-actions">
                     <button class="btn btn-export" @click="handleUnsavedChoice(true)">保存</button>
                     <button class="btn btn-outline" @click="handleUnsavedChoice(false)">不保存</button>

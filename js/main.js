@@ -128,12 +128,25 @@ const app = createApp({
         const saveHelpers = createSaveHelpers({ state, persist: persistAction, rememberHandle: storeFileHandle });
         const openHelpers = createOpenHelpers({
             state, fileInput, showUnsavedModal, pendingOpen,
+            defaultContent: DEFAULT_CONTENT,
             saveFile: saveHelpers.saveFile,
             persist: persistAction,
             rememberHandle: storeFileHandle,
+            onNewFile: async () => {
+                await nextTick();
+                const textarea = textareaRef.value;
+                if (textarea) {
+                    textarea.focus({ preventScroll: true });
+                    textarea.setSelectionRange(0, 0);
+                    textarea.scrollTop = 0;
+                    textarea.scrollLeft = 0;
+                }
+                if (previewRef.value) previewRef.value.scrollTop = 0;
+                updateCursorPos();
+            },
         });
 
-        const { openFile, handleFileChange, handleUnsavedChoice, setupDragDrop } = openHelpers;
+        const { newFile, openFile, handleFileChange, handleUnsavedChoice, setupDragDrop } = openHelpers;
         const { saveFile } = saveHelpers;
 
         // ---------- 滚动同步（双向，按滚动比例互相映射） ----------
@@ -178,6 +191,7 @@ const app = createApp({
 
         let cleanupSync = null;
         let cleanupDragDrop = null;
+        let cleanupPrint = null;
 
         // ---------- 打印 / PDF 导出（独立模块，见 print.js） ----------
         const printHelpers = createPrintHelpers({
@@ -185,7 +199,12 @@ const app = createApp({
             previewRef,
             flushPreview: () => {
                 clearTimeout(renderTimer);
-                renderedHtml.value = parseMarkdown(markdownContent.value);
+                const html = parseMarkdown(markdownContent.value);
+                renderedHtml.value = html;
+                // Native beforeprint cannot wait for Vue's queued v-html update.
+                if (previewRef.value && previewRef.value.innerHTML !== html) {
+                    previewRef.value.innerHTML = html;
+                }
             },
         });
         const { printSettings, showPrintSettings, openPrintSettings, closePrintSettings, exportPDF } = printHelpers;
@@ -197,13 +216,19 @@ const app = createApp({
 
             // Esc：关闭未保存修改弹窗
             if (e.key === 'Escape' && showUnsavedModal.value) {
-                showUnsavedModal.value = false;
-                pendingOpen.value = null;
+                handleUnsavedChoice(null);
                 return;
             }
 
             const isCtrl = e.ctrlKey || e.metaKey;
             const isEditorTarget = e.target === textareaRef.value;
+
+            // Ctrl+Alt+N avoids the browser-reserved Ctrl+N / Ctrl+Shift+N shortcuts.
+            if (isCtrl && e.altKey && !e.shiftKey && (e.code === 'KeyN' || e.key === 'n' || e.key === 'N')) {
+                e.preventDefault();
+                newFile();
+                return;
+            }
 
             // Ctrl + Shift + O ：打开文件
             if (isCtrl && e.shiftKey && (e.key === 'O' || e.key === 'o')) {
@@ -215,7 +240,6 @@ const app = createApp({
             // Tab 键：插入两个空格，并阻止焦点转移
             if (e.key === 'Tab' && !e.shiftKey && isEditorTarget) {
                 e.preventDefault();
-                ensureTextareaFocus();
                 insertAtCursor('  ');
                 return;
             }
@@ -224,13 +248,11 @@ const app = createApp({
             if (isCtrl && !e.shiftKey && isEditorTarget) {
                 if (e.key === 'b' || e.key === 'B') {
                     e.preventDefault();
-                    ensureTextareaFocus();
                     insertBold();
                     return;
                 }
                 if (e.key === 'i' || e.key === 'I') {
                     e.preventDefault();
-                    ensureTextareaFocus();
                     insertItalic();
                     return;
                 }
@@ -248,15 +270,6 @@ const app = createApp({
                 e.preventDefault();
                 exportPDF();
                 return;
-            }
-        }
-
-        // 辅助：如果当前焦点不在 textarea，则聚焦（保留原有光标位置）
-        function ensureTextareaFocus() {
-            const ta = textareaRef.value;
-            if (!ta) return;
-            if (document.activeElement !== ta) {
-                ta.focus({ preventScroll: true });
             }
         }
 
@@ -286,6 +299,7 @@ const app = createApp({
             window.addEventListener('pagehide', persist);
             window.addEventListener('beforeunload', onBeforeUnload);
             document.addEventListener('visibilitychange', onVisibilityChange);
+            cleanupPrint = printHelpers.setupPrintEvents();
 
             await nextTick();
             renderMathElements(previewRef.value);
@@ -306,6 +320,7 @@ const app = createApp({
             editorFeatures.cleanup();
             if (cleanupSync) cleanupSync();
             if (cleanupDragDrop) cleanupDragDrop();
+            if (cleanupPrint) cleanupPrint();
             document.removeEventListener('keydown', handleGlobalKeydown);
         });
 
@@ -339,6 +354,7 @@ const app = createApp({
             onEditorCompositionCancel,
             updateCursorPos,
             toggleWrap,
+            newFile,
             openFile,
             handleFileChange,
             handleUnsavedChoice,
