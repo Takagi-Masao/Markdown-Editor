@@ -35,7 +35,12 @@
                 <span class="divider"></span>
 
                 <button class="btn btn-outline" @click="newFile" title="新建 Markdown 文件（Ctrl+Alt+N）">
-                    <img src="https://cdn.jsdelivr.net/npm/lucide-static@0.468.0/icons/file-plus-2.svg" width="16" height="16" alt="" aria-hidden="true" />
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                        <path d="M4 22h14a2 2 0 0 0 2-2V7l-5-5H6a2 2 0 0 0-2 2v4" />
+                        <path d="M14 2v4a2 2 0 0 0 2 2h4" />
+                        <path d="M3 15h6" />
+                        <path d="M6 12v6" />
+                    </svg>
                     新建
                 </button>
                 <button class="btn btn-outline" @click="openFile" title="打开 Markdown 文件（Ctrl+Shift+O）">
