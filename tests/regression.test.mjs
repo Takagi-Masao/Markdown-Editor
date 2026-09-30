@@ -69,7 +69,7 @@ function openHelpers(state, overrides = {}) {
     return {
         showUnsavedModal, pendingOpen,
         ...createOpenHelpers({ state, fileInput: ref({ click() {} }), showUnsavedModal, pendingOpen,
-            defaultContent: 'default template',
+            defaultContent: 'default template', focusEditor: () => {},
             saveFile: async () => true, persist: () => saveSession(state.snapshot()), rememberHandle: async () => true,
             ...overrides }),
     };
@@ -494,7 +494,7 @@ test('new file restores the template with a fresh identity and no file associati
     state.fileHandle.value = original;
     const oldId = state.documentId.value;
     let created = 0;
-    const opener = openHelpers(state, { onNewFile: () => { created++; } });
+    const opener = openHelpers(state, { focusEditor: () => { created++; } });
     await opener.newFile();
     assert.equal(state.markdownContent.value, 'default template');
     assert.equal(state.savedContent.value, 'default template');
@@ -614,4 +614,38 @@ test('a newer open request supersedes a pending save-before-new', async () => {
     assert.equal(opener.pendingOpen.value, pending);
     await opener.handleUnsavedChoice(false);
     assert.equal(state.markdownContent.value, 'latest file');
+});
+
+test('discard-and-new focuses the editor after replacement', async () => {
+    const state = fresh();
+    state.markdownContent.value = 'unsaved edits';
+    let focused = 0;
+    const opener = openHelpers(state, { focusEditor: () => { focused++; } });
+    await opener.newFile();
+    assert.equal(opener.showUnsavedModal.value, true);
+    await opener.handleUnsavedChoice(false);
+    assert.equal(state.markdownContent.value, 'default template');
+    assert.equal(focused, 1);
+});
+
+test('successful open focuses the editor after commit', async () => {
+    const state = fresh();
+    let focused = 0;
+    const opener = openHelpers(state, { focusEditor: () => { focused++; } });
+    await opener.handleFileChange(inputEvent({ name: 'focus.md', text: 'loaded' }));
+    assert.equal(state.markdownContent.value, 'loaded');
+    assert.equal(state.currentFileName.value, 'focus.md');
+    assert.equal(focused, 1);
+});
+
+test('canceled dirty open never focuses the editor', async () => {
+    const state = fresh();
+    state.markdownContent.value = 'keep me';
+    let focused = 0;
+    const opener = openHelpers(state, { focusEditor: () => { focused++; } });
+    await opener.openFile();
+    assert.equal(opener.showUnsavedModal.value, true);
+    await opener.handleUnsavedChoice(null);
+    assert.equal(state.markdownContent.value, 'keep me');
+    assert.equal(focused, 0);
 });

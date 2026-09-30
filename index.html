@@ -138,6 +138,7 @@
                             v-model="markdownContent"
                             :wrap="wrapEnabled ? 'soft' : 'off'"
                             placeholder="在此输入 Markdown 内容……"
+                            aria-label="Markdown 编辑区"
                             @input="onEditorInput"
                             @compositionstart="onEditorCompositionStart"
                             @compositionend="onEditorCompositionEnd"
@@ -168,41 +169,61 @@
             <span class="status-item">{{ charCount }} 字符</span>
         </div>
 
-        <!-- 未保存修改确认弹窗 -->
-        <div v-if="showUnsavedModal" class="modal-overlay" @click.self="handleUnsavedChoice(null)">
+        <!-- 未保存修改确认弹窗（原生 <dialog>：top layer、背景 inert、Esc 关闭由浏览器提供） -->
+        <dialog
+            class="modal-dialog"
+            ref="unsavedDialogRef"
+            v-if="showUnsavedModal"
+            aria-labelledby="unsaved-modal-title"
+            @cancel="onUnsavedDialogCancel"
+            @close="onUnsavedDialogClose"
+            @click.self="handleUnsavedChoice(null)"
+        >
             <div class="modal">
-                <p class="modal-text">当前文件有未保存的修改，是否保存后再切换文件？</p>
+                <p class="modal-text" id="unsaved-modal-title">当前文件有未保存的修改，是否保存后再切换文件？</p>
                 <div class="modal-actions">
                     <button class="btn btn-export" @click="handleUnsavedChoice(true)">保存</button>
                     <button class="btn btn-outline" @click="handleUnsavedChoice(false)">不保存</button>
-                    <button class="btn btn-outline" @click="handleUnsavedChoice(null)">取消</button>
+                    <button class="btn btn-outline" data-autofocus @click="handleUnsavedChoice(null)">取消</button>
                 </div>
             </div>
-        </div>
+        </dialog>
 
-        <!-- 打印页眉页脚设置弹窗 -->
-        <div v-if="showPrintSettings" class="modal-overlay" @click.self="closePrintSettings">
+        <!-- 打印页眉页脚设置弹窗（form method="dialog"：输入框内回车即确认） -->
+        <dialog
+            class="modal-dialog"
+            ref="printDialogRef"
+            v-if="showPrintSettings"
+            aria-labelledby="print-settings-title"
+            @cancel="closePrintSettings"
+            @close="onPrintSettingsDialogClose"
+            @click.self="closePrintSettings"
+        >
             <div class="modal">
-                <p class="modal-text">打印页眉页脚设置</p>
-                <div class="print-settings">
-                    <div class="setting-row">
-                        <span class="setting-label">页眉</span>
-                        <label><input type="checkbox" v-model="printSettings.showTime" /> 时间</label>
-                        <label><input type="checkbox" v-model="printSettings.showTitle" /> 标题</label>
+                <p class="modal-text" id="print-settings-title">打印页眉页脚设置</p>
+                <form id="print-settings-form" method="dialog" @submit="closePrintSettings">
+                    <div class="print-settings">
+                        <div class="setting-row">
+                            <span class="setting-label">页眉</span>
+                            <label><input type="checkbox" data-autofocus v-model="printSettings.showTime" /> 时间</label>
+                            <label><input type="checkbox" v-model="printSettings.showTitle" /> 标题</label>
+                        </div>
+                        <label class="sr-only" for="print-header-text">自定义页眉文本（居中显示）</label>
+                        <input id="print-header-text" class="setting-input" v-model="printSettings.headerText" placeholder="自定义页眉文本（居中显示）" @keydown.enter.prevent="closePrintSettings" />
+                        <div class="setting-row">
+                            <span class="setting-label">页脚</span>
+                            <label><input type="checkbox" v-model="printSettings.showUrl" /> 地址</label>
+                        </div>
+                        <label class="sr-only" for="print-footer-text">自定义页脚文本（居中显示）</label>
+                        <input id="print-footer-text" class="setting-input" v-model="printSettings.footerText" placeholder="自定义页脚文本（居中显示）" @keydown.enter.prevent="closePrintSettings" />
+                        <p class="setting-hint">页码固定显示在页脚右侧。<strong>请务必在打印预览界面点击「更多设置」→「选项」，取消勾选「页眉和页脚」</strong>——浏览器自带的黑色时间/标题/网址/页码无法用代码关闭，不取消会与本页眉页脚重复。</p>
                     </div>
-                    <input class="setting-input" v-model="printSettings.headerText" placeholder="自定义页眉文本（居中显示）" />
-                    <div class="setting-row">
-                        <span class="setting-label">页脚</span>
-                        <label><input type="checkbox" v-model="printSettings.showUrl" /> 地址</label>
+                    <div class="modal-actions">
+                        <button type="submit" class="btn btn-export">确定</button>
                     </div>
-                    <input class="setting-input" v-model="printSettings.footerText" placeholder="自定义页脚文本（居中显示）" />
-                    <p class="setting-hint">页码固定显示在页脚右侧。<strong>请务必在打印预览界面点击「更多设置」→「选项」，取消勾选「页眉和页脚」</strong>——浏览器自带的黑色时间/标题/网址/页码无法用代码关闭，不取消会与本页眉页脚重复。</p>
-                </div>
-                <div class="modal-actions">
-                    <button class="btn btn-export" @click="closePrintSettings">确定</button>
-                </div>
+                </form>
             </div>
-        </div>
+        </dialog>
     </div>
 
     <!-- highlight.js -->

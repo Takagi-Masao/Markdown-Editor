@@ -45,3 +45,16 @@ body {
     overflow: hidden;
     min-height: 0;
 }
+
+/* 仅供读屏使用的隐藏标签（如打印设置输入框的 label） */
+.sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}

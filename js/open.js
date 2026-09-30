@@ -2,7 +2,7 @@ import { loadFileContent } from './editor.js';
 
 export function createOpenHelpers({
     state, fileInput, showUnsavedModal, pendingOpen, saveFile, persist, rememberHandle,
-    defaultContent, onNewFile = () => {},
+    defaultContent, focusEditor = () => {},
 }) {
     let openVersion = 0;
     let inputApproval = null;
@@ -37,7 +37,7 @@ export function createOpenHelpers({
         return requestOpen(() => {
             state.replaceDocument({ content: defaultContent, baseline: defaultContent, fileName: null });
             persist();
-            return onNewFile();
+            return focusEditor();
         });
     }
 
@@ -66,6 +66,7 @@ export function createOpenHelpers({
                 state.replaceDocument({ content: text, baseline: text, fileName: file.name }, handle);
                 persist();
                 void rememberHandle(state.documentId.value, handle);
+                focusEditor();
             };
             // Edits made during the picker/read need their own discard decision.
             if (state.markdownContent.value !== before.content) return requestOpen(commit, request);

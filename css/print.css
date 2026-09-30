@@ -36,7 +36,8 @@
 
     .toolbar,
     .modal-overlay,
-    .modal {
+    .modal,
+    dialog.modal-dialog {
         display: none !important;
     }
 

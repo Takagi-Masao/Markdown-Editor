@@ -132,7 +132,7 @@ const app = createApp({
             saveFile: saveHelpers.saveFile,
             persist: persistAction,
             rememberHandle: storeFileHandle,
-            onNewFile: async () => {
+            focusEditor: async () => {
                 await nextTick();
                 const textarea = textareaRef.value;
                 if (textarea) {
@@ -150,24 +150,37 @@ const app = createApp({
         const { saveFile } = saveHelpers;
 
         // ---------- 滚动同步（双向，按滚动比例互相映射） ----------
-        let syncLock = false;   // 锁：当程序设置 scrollTop 时忽略事件，防止循环
+        // scroll 事件是异步派发的，短暂置锁挡不住回环：程序写入的滚动会在
+        // 下一帧触发对方的 scroll 事件，再把比例（含取整误差/端点钳制）写回
+        // 原侧，抵消用户滚轮的部分位移——对方滚动范围越小时越明显（实测每格
+        // 120px 被回环抵消成 109px），接近上下端时表现为每格移动距离变小。
+        // 因此按「写入值吞掉一次回声」：只消费位置与程序写入值一致的事件。
 
         function setupSyncScroll() {
             const editor = textareaRef.value;
             const preview = previewRef.value;
             if (!editor || !preview) return () => {};
 
+            let suppressEditorEcho = null;
+            let suppressPreviewEcho = null;
+
             // 按滚动比例把一侧的位置映射到另一侧
             function syncTo(ratio, target) {
                 const max = target.scrollHeight - target.clientHeight;
-                syncLock = true;
-                target.scrollTop = ratio * Math.max(max, 0);
-                syncLock = false;
+                if (max <= 0) return;
+                const value = ratio * max;
+                if (target === preview) suppressPreviewEcho = value;
+                else suppressEditorEcho = value;
+                target.scrollTop = value;
             }
 
             // 编辑 → 预览
             function onEditorScroll() {
-                if (syncLock) return;
+                if (suppressEditorEcho !== null && Math.abs(editor.scrollTop - suppressEditorEcho) < 1) {
+                    suppressEditorEcho = null;
+                    return;
+                }
+                suppressEditorEcho = null;
                 const maxScrollTop = editor.scrollHeight - editor.clientHeight;
                 if (maxScrollTop <= 0) return;
                 syncTo(editor.scrollTop / maxScrollTop, preview);
@@ -175,7 +188,11 @@ const app = createApp({
 
             // 预览 → 编辑
             function onPreviewScroll() {
-                if (syncLock) return;
+                if (suppressPreviewEcho !== null && Math.abs(preview.scrollTop - suppressPreviewEcho) < 1) {
+                    suppressPreviewEcho = null;
+                    return;
+                }
+                suppressPreviewEcho = null;
                 const maxScrollTop = preview.scrollHeight - preview.clientHeight;
                 if (maxScrollTop <= 0) return;
                 syncTo(preview.scrollTop / maxScrollTop, editor);
@@ -209,16 +226,135 @@ const app = createApp({
         });
         const { printSettings, showPrintSettings, openPrintSettings, closePrintSettings, exportPDF } = printHelpers;
 
+        // ---------- 弹窗焦点管理（原生 <dialog>：top layer、背景 inert、Esc 关闭）----------
+        // 打开：记住焦点来源，进入弹窗并聚焦初始控件；关闭：同步状态并归还焦点。
+        // 允许弹窗叠加（如打印设置之上再弹未保存确认），Esc 原生关闭最上层。
+        const unsavedDialogRef = ref(null);
+        const printDialogRef = ref(null);
+        let unsavedRestoreTarget = null;
+        let printRestoreTarget = null;
+        // 打开顺序栈：栈顶 = 最上层弹窗（原生 <dialog> 只保证背景 inert，
+        // Tab 焦点圈定需要自行实现；Esc 关闭最上层由浏览器原生处理）。
+        const dialogStack = [];
+
+        function trapDialogTab(e) {
+            if (e.key !== 'Tab' || dialogStack.length === 0) return;
+            const dialog = dialogStack[dialogStack.length - 1];
+            if (!dialog.open) return;
+            const focusables = [...dialog.querySelectorAll(
+                'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+            )].filter(el => el.getClientRects().length > 0);
+            if (focusables.length === 0) return;
+            const index = focusables.indexOf(document.activeElement);
+            let next = index === -1 ? 0 : index + (e.shiftKey ? -1 : 1);
+            if (next >= focusables.length) next = 0;
+            if (next < 0) next = focusables.length - 1;
+            e.preventDefault();
+            focusables[next].focus();
+        }
+
+        function restoreDialogFocus(target) {
+            if (target instanceof HTMLElement && target.isConnected && target !== document.body) {
+                target.focus({ preventScroll: true });
+            } else {
+                const ta = textareaRef.value;
+                if (ta) ta.focus({ preventScroll: true });
+            }
+        }
+
+        function focusDialogInitial(dialog) {
+            const el = dialog?.querySelector('[data-autofocus]');
+            if (el instanceof HTMLElement) el.focus();
+        }
+
+        function dropDialogFromStack(dialog) {
+            const index = dialogStack.indexOf(dialog);
+            if (index !== -1) dialogStack.splice(index, 1);
+        }
+
+        // 状态是唯一事实来源：Esc 经 cancel 事件、表单提交经 submit 事件、
+        // 按钮经 handleUnsavedChoice / closePrintSettings 同步状态，再由 watch
+        // 关闭弹窗、弹出焦点栈并归还焦点。close 事件异步派发且可能晚于重开，
+        // 因此只做残留清理，不反向写状态（避免旧弹窗的 close 误关新弹窗）。
+        watch(showUnsavedModal, open => {
+            if (open) {
+                nextTick(() => {
+                    const dialog = unsavedDialogRef.value;
+                    if (!dialog) return;
+                    unsavedRestoreTarget = document.activeElement;
+                    if (!dialog.open) {
+                        dialog.showModal();
+                        focusDialogInitial(dialog);
+                    }
+                    if (!dialogStack.includes(dialog)) dialogStack.push(dialog);
+                });
+            } else {
+                const dialog = unsavedDialogRef.value;
+                if (dialog?.open) dialog.close();
+                dropDialogFromStack(dialog);
+                const target = unsavedRestoreTarget;
+                unsavedRestoreTarget = null;
+                restoreDialogFocus(target);
+            }
+        });
+
+        watch(showPrintSettings, open => {
+            if (open) {
+                nextTick(() => {
+                    const dialog = printDialogRef.value;
+                    if (!dialog) return;
+                    printRestoreTarget = document.activeElement;
+                    if (!dialog.open) {
+                        dialog.showModal();
+                        focusDialogInitial(dialog);
+                    }
+                    if (!dialogStack.includes(dialog)) dialogStack.push(dialog);
+                });
+            } else {
+                const dialog = printDialogRef.value;
+                if (dialog?.open) dialog.close();
+                dropDialogFromStack(dialog);
+                const target = printRestoreTarget;
+                printRestoreTarget = null;
+                restoreDialogFocus(target);
+            }
+        });
+
+        // Esc 关闭弹窗：cancel 事件在浏览器关闭弹窗前同步触发，直接走状态路径。
+        function onUnsavedDialogCancel() {
+            if (showUnsavedModal.value) {
+                showUnsavedModal.value = false;
+                pendingOpen.value = null;
+            }
+        }
+
+        // close 事件：只清理焦点栈；若浏览器未触发 cancel 就关闭了当前弹窗
+        // （浏览器差异的防御分支），按取消同步状态。
+        function onUnsavedDialogClose(event) {
+            const dialog = event?.currentTarget;
+            dropDialogFromStack(dialog);
+            if (!dialog || dialog !== unsavedDialogRef.value) return;
+            if (showUnsavedModal.value) {
+                showUnsavedModal.value = false;
+                pendingOpen.value = null;
+            }
+        }
+
+        function onPrintSettingsDialogClose(event) {
+            const dialog = event?.currentTarget;
+            dropDialogFromStack(dialog);
+            if (!dialog || dialog !== printDialogRef.value) return;
+            if (showPrintSettings.value) showPrintSettings.value = false;
+        }
+
         // ---------- 全局键盘快捷键 ----------
         function handleGlobalKeydown(e) {
             // 如果正在输入法组合中，不处理（以免打断中文输入）
             if (e.isComposing) return;
 
-            // Esc：关闭未保存修改弹窗
-            if (e.key === 'Escape' && showUnsavedModal.value) {
-                handleUnsavedChoice(null);
-                return;
-            }
+            // Esc 关闭弹窗由原生 <dialog> 的 cancel/close 事件接管（见下方 watch）。
+            // 其余快捷键在弹窗打开时保持可用：背景已 inert、焦点圈定在弹窗内，
+            // 打开/新建等流程由 open.js 的请求版本号安全地让新意图取代旧意图。
 
             const isCtrl = e.ctrlKey || e.metaKey;
             const isEditorTarget = e.target === textareaRef.value;
@@ -307,6 +443,7 @@ const app = createApp({
             editorFeatures.render();
             cleanupSync = setupSyncScroll();
             cleanupDragDrop = setupDragDrop();
+            document.addEventListener('keydown', trapDialogTab);
             document.addEventListener('keydown', handleGlobalKeydown);
         });
 
@@ -321,6 +458,7 @@ const app = createApp({
             if (cleanupSync) cleanupSync();
             if (cleanupDragDrop) cleanupDragDrop();
             if (cleanupPrint) cleanupPrint();
+            document.removeEventListener('keydown', trapDialogTab);
             document.removeEventListener('keydown', handleGlobalKeydown);
         });
 
@@ -365,6 +503,11 @@ const app = createApp({
             openPrintSettings,
             closePrintSettings,
             exportPDF,
+            unsavedDialogRef,
+            printDialogRef,
+            onUnsavedDialogCancel,
+            onUnsavedDialogClose,
+            onPrintSettingsDialogClose,
         };
     },
 });

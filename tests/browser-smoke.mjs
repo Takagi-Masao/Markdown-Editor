@@ -238,11 +238,11 @@ try {
         ta.dispatchEvent(new Event('input', { bubbles: true }));
         window.dispatchEvent(new DragEvent('drop', { dataTransfer: transfer, bubbles: true }));
     })()`);
-    await waitFor("document.querySelectorAll('.modal-overlay').length === 2", 'both modals open');
+    await waitFor("document.querySelectorAll('dialog[open]').length === 2", 'both modals open');
     await send('Emulation.setEmulatedMedia', { media: 'print' });
-    assert.equal(await evaluate("[...document.querySelectorAll('.modal-overlay, .modal')].every(el => getComputedStyle(el).display === 'none')"), true);
+    assert.equal(await evaluate("[...document.querySelectorAll('.modal, dialog.modal-dialog')].every(el => getComputedStyle(el).display === 'none')"), true);
     await send('Emulation.setEmulatedMedia', { media: '' });
-    assert.equal(await evaluate("[...document.querySelectorAll('.modal-overlay')].every(el => getComputedStyle(el).display !== 'none')"), true);
+    assert.equal(await evaluate("[...document.querySelectorAll('dialog.modal-dialog')].every(el => getComputedStyle(el).display !== 'none')"), true);
     const oldTitle = await evaluate('document.title');
     const immediatePrint = await evaluate(`(() => {
         const ta = document.querySelector('textarea');
@@ -309,7 +309,7 @@ try {
     assert.equal(await evaluate('window.__printCalls'), 1);
     assert.equal(await evaluate('document.title'), oldTitle);
     assert.equal(await evaluate("!!document.querySelector('#print-header-footer-style')"), false);
-    assert.equal(await evaluate("document.querySelectorAll('.modal-overlay').length"), 2);
+    assert.equal(await evaluate("document.querySelectorAll('dialog[open]').length"), 2);
     console.log('PASS export shortcut with open modals, duplicate export guard and delayed afterprint cleanup');
 
     await evaluate(`(() => {
@@ -358,7 +358,7 @@ try {
         document.querySelector('.print-settings').closest('.modal').querySelector('button').click();
         [...document.querySelectorAll('.modal-actions button')].find(el => el.textContent === '取消').click();
     })()`);
-    await waitFor("!document.querySelector('.modal-overlay')", 'close existing modals');
+    await waitFor("!document.querySelector('dialog[open]')", 'close existing modals');
     const reservedShortcuts = await evaluate(`(() => {
         const events = [false, true].map(shiftKey => new KeyboardEvent('keydown', {
             key: 'n', code: 'KeyN', ctrlKey: true, shiftKey, bubbles: true, cancelable: true,
@@ -367,14 +367,14 @@ try {
         return events.map(event => event.defaultPrevented);
     })()`);
     assert.deepEqual(reservedShortcuts, [false, false]);
-    assert.equal(await evaluate("!!document.querySelector('.modal-overlay')"), false);
+    assert.equal(await evaluate("!!document.querySelector('dialog[open]')"), false);
     await send('Input.dispatchKeyEvent', { type: 'rawKeyDown', modifiers: 3, key: 'n', code: 'KeyN', windowsVirtualKeyCode: 78 });
     await send('Input.dispatchKeyEvent', { type: 'keyUp', modifiers: 3, key: 'n', code: 'KeyN', windowsVirtualKeyCode: 78 });
-    await waitFor("!!document.querySelector('.modal-overlay')", 'new file shortcut confirmation');
+    await waitFor("!!document.querySelector('dialog[open]')", 'new file shortcut confirmation');
     await evaluate("[...document.querySelectorAll('.modal-actions button')].find(el => el.textContent === '取消').click()");
     assert.equal(await evaluate(content), '# Export latest\n\n$y^2$');
     await evaluate("document.querySelector('button[title^=\"新建 Markdown\"]').click()");
-    await waitFor("!!document.querySelector('.modal-overlay')", 'new file toolbar confirmation');
+    await waitFor("!!document.querySelector('dialog[open]')", 'new file toolbar confirmation');
     await evaluate("[...document.querySelectorAll('.modal-actions button')].find(el => el.textContent === '保存').click()");
     await waitFor(`${content} === ${JSON.stringify(defaultContent)}`, 'save then new file');
     assert.equal(await evaluate('document.title'), defaultTitle);
@@ -390,12 +390,12 @@ try {
     const newId = await evaluate("JSON.parse(localStorage.getItem('markdown-editor:session.v2')).documentId");
     await evaluate("document.querySelector('button[title^=\"新建 Markdown\"]').click()");
     assert.notEqual(await evaluate("JSON.parse(localStorage.getItem('markdown-editor:session.v2')).documentId"), newId);
-    assert.equal(await evaluate("!!document.querySelector('.modal-overlay')"), false);
+    assert.equal(await evaluate("!!document.querySelector('dialog[open]')"), false);
     console.log('PASS Ctrl+Alt+N / toolbar new, cancel, save-before-new, clean new and reload');
 
     await edit('discard this draft');
     await evaluate("document.querySelector('button[title^=\"新建 Markdown\"]').click()");
-    await waitFor("!!document.querySelector('.modal-overlay')", 'discard-before-new confirmation');
+    await waitFor("!!document.querySelector('dialog[open]')", 'discard-before-new confirmation');
     await evaluate("[...document.querySelectorAll('.modal-actions button')].find(el => el.textContent === '不保存').click()");
     await waitFor(`${content} === ${JSON.stringify(defaultContent)}`, 'discard then new file');
     assert.equal(await evaluate(dirty), false);
@@ -414,7 +414,7 @@ try {
     assert.equal(await evaluate("(async () => (await (await (await navigator.storage.getDirectory()).getFileHandle('smoke.md')).getFile()).text())()"), '# Export latest\n\n$y^2$');
     await evaluate("document.querySelector('button[title^=\"新建 Markdown\"]').click()");
     await waitFor(`${content} === ${JSON.stringify(defaultContent)}`, 'new after saving separate file');
-    await waitFor("document.querySelector('button[title^=\"新建 Markdown\"] img').naturalWidth > 0", 'new file icon');
+    await waitFor("document.querySelector('button[title^=\"新建 Markdown\"] svg').getBoundingClientRect().width > 0", 'new file icon');
     if (process.env.SMOKE_ARTIFACT_DIR) {
         for (const [name, width, height] of [['desktop', 1280, 900], ['mobile', 390, 844]]) {
             await send('Emulation.setDeviceMetricsOverride', { width, height, deviceScaleFactor: 1, mobile: false });
@@ -461,6 +461,118 @@ try {
         await waitFor(`${content} === ${JSON.stringify(normalizedContent)} && !(${dirty})`, 'formatting undo');
     }
     console.log('PASS CRLF selection positions, Ctrl+B / Ctrl+I / Tab, toolbar focus and native undo');
+
+    // ---- 弹窗键盘与无障碍：初始焦点、Tab 圈定、Esc/遮罩关闭、焦点归还 ----
+    await evaluate(`(() => {
+        const ta = document.querySelector('textarea');
+        ta.focus();
+        ta.setSelectionRange(ta.value.length, ta.value.length);
+    })()`);
+    assert.equal(await evaluate("document.querySelector('textarea').getAttribute('aria-label')"), 'Markdown 编辑区');
+    await edit('modal edits');
+    await waitFor(dirty, 'modal edits dirty');
+    const pressKey = async (key, code, windowsVirtualKeyCode, modifiers = 0) => {
+        await send('Input.dispatchKeyEvent', { type: 'rawKeyDown', modifiers, key, code, windowsVirtualKeyCode });
+        await send('Input.dispatchKeyEvent', { type: 'keyUp', modifiers, key, code, windowsVirtualKeyCode });
+    };
+    await pressKey('O', 'KeyO', 79, 10);
+    await waitFor("!!document.querySelector('dialog[open]')", 'unsaved dialog opens via shortcut');
+    assert.equal(await evaluate("document.activeElement?.textContent?.trim()"), '取消', 'initial focus on cancel');
+    assert.equal(await evaluate("document.activeElement?.closest('dialog[open]')?.getAttribute('aria-labelledby')"), 'unsaved-modal-title');
+    for (let i = 0; i < 4; i++) {
+        await pressKey('Tab', 'Tab', 9);
+        await delay(30);
+        assert.equal(await evaluate("!!document.activeElement?.closest('dialog[open]')"), true, `Tab ${i + 1} stays inside dialog`);
+    }
+    assert.equal(await evaluate(content), 'modal edits', 'background editor untouched while dialog open');
+    await pressKey('Escape', 'Escape', 27);
+    await waitFor("!document.querySelector('dialog[open]')", 'Esc closes unsaved dialog');
+    assert.equal(await evaluate("document.activeElement === document.querySelector('textarea')"), true, 'focus restored to editor');
+    assert.equal(await evaluate(dirty), true, 'Esc keeps edits');
+    await pressKey('O', 'KeyO', 79, 10);
+    await waitFor("!!document.querySelector('dialog[open]')", 'dialog reopens');
+    await evaluate("document.querySelector('dialog[open]').click()");
+    await waitFor("!document.querySelector('dialog[open]')", 'backdrop click cancels');
+    assert.equal(await evaluate("document.activeElement === document.querySelector('textarea')"), true, 'focus restored after backdrop cancel');
+    assert.equal(await evaluate(dirty), true, 'cancel keeps dirty state');
+    console.log('PASS unsaved dialog initial focus, Tab trap, Esc / backdrop cancel and focus restore');
+
+    // ---- 打印设置弹窗：初始焦点、label 关联、Esc 与回车提交、焦点归还 ----
+    const openPrintSettingsDialog = async () => {
+        await evaluate(`(() => { const b = document.querySelector('button[title^="设置打印页眉页脚"]'); b.focus(); b.click(); })()`);
+        await waitFor("!!document.querySelector('dialog[open]')", 'print settings dialog opens');
+    };
+    await openPrintSettingsDialog();
+    assert.equal(await evaluate("document.activeElement === document.querySelector('#print-settings-form input[type=checkbox]')"), true, 'initial focus on first checkbox');
+    assert.equal(await evaluate(`(() => {
+        const r = document.querySelector('dialog[open]').getBoundingClientRect();
+        return Math.abs(r.left + r.width / 2 - innerWidth / 2) < 2 && Math.abs(r.top + r.height / 2 - innerHeight / 2) < 2;
+    })()`), true, 'dialog centered in viewport');
+    assert.equal(await evaluate("document.querySelector('#print-header-text').labels.length"), 1, 'header input has label');
+    for (let i = 0; i < 8; i++) {
+        await pressKey('Tab', 'Tab', 9);
+        await delay(30);
+        assert.equal(await evaluate("!!document.activeElement?.closest('dialog[open]')"), true, `print Tab ${i + 1} stays inside dialog`);
+    }
+    await pressKey('Escape', 'Escape', 27);
+    await waitFor("!document.querySelector('dialog[open]')", 'Esc closes print dialog');
+    assert.equal(await evaluate("document.activeElement?.textContent?.includes('打印设置')"), true, 'focus restored to print settings button');
+    await openPrintSettingsDialog();
+    await evaluate("document.querySelector('#print-header-text').focus()");
+    await pressKey('Enter', 'Enter', 13);
+    await waitFor("!document.querySelector('dialog[open]')", 'Enter submits and closes print dialog');
+    assert.equal(await evaluate("document.activeElement?.textContent?.includes('打印设置')"), true, 'focus restored after Enter submit');
+    console.log('PASS print settings dialog focus, labels, Esc / Enter close and focus restore');
+
+    // ---- 弹窗叠加：最上层 Esc 只关最上层 ----
+    await openPrintSettingsDialog();
+    await pressKey('O', 'KeyO', 79, 10);
+    await waitFor("document.querySelectorAll('dialog[open]').length === 2", 'unsaved dialog stacks on top');
+    await pressKey('Escape', 'Escape', 27);
+    await waitFor("document.querySelectorAll('dialog[open]').length === 1", 'Esc closes topmost unsaved dialog');
+    assert.equal(await evaluate("document.querySelector('#print-settings-form') !== null"), true, 'print dialog remains');
+    await pressKey('Escape', 'Escape', 27);
+    await waitFor("!document.querySelector('dialog[open]')", 'second Esc closes print dialog');
+    console.log('PASS stacked dialogs: topmost Esc closes only the topmost dialog');
+
+    // ---- 滚动同步：程序写入的回环不得吞掉用户滚轮位移 ----
+    await evaluate(`(() => {
+        const ta = document.querySelector('textarea');
+        const fence = String.fromCharCode(96) + String.fromCharCode(96) + String.fromCharCode(96);
+        ta.value = '\\n\\n'.repeat(600) + fence + '\\n' + Array.from({ length: 400 }, (_, i) => 'line ' + i).join('\\n') + '\\n' + fence;
+        ta.dispatchEvent(new Event('input', { bubbles: true }));
+    })()`);
+    await delay(800);
+    const editorPane = await evaluate(`(() => {
+        const r = document.querySelector('.editor-pane').getBoundingClientRect();
+        return { x: Math.round(r.left + r.width / 2), y: Math.round(r.top + r.height / 2) };
+    })()`);
+    await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: editorPane.x, y: editorPane.y });
+    const wheelDeltas = async (ticks, deltaY) => {
+        const start = await evaluate("document.querySelector('textarea').scrollTop");
+        const tops = [];
+        for (let i = 0; i < ticks; i++) {
+            await send('Input.dispatchMouseEvent', { type: 'mouseWheel', x: editorPane.x, y: editorPane.y, deltaX: 0, deltaY });
+            await delay(120);
+            tops.push(await evaluate("document.querySelector('textarea').scrollTop"));
+        }
+        return [tops[0] - start, ...tops.slice(1).map((value, index) => value - tops[index])];
+    };
+    // 预览滚动范围远小于编辑区时（代码块被折叠为 400px），回环曾把每格 120px 吞成 ~109px。
+    await evaluate(`(() => { document.querySelector('textarea').scrollTop = 10000; })()`);
+    await delay(200);
+    for (const delta of await wheelDeltas(6, 120)) {
+        assert.ok(Math.abs(delta - 120) < 5, `wheel tick moves full distance, got ${delta}`);
+    }
+    // 靠近底部：每格仍完整移动，到达端点后停止。
+    await evaluate(`(() => { const ta = document.querySelector('textarea'); ta.scrollTop = ta.scrollHeight - ta.clientHeight - 600; })()`);
+    await delay(200);
+    const bottomDeltas = await wheelDeltas(7, 120);
+    assert.deepEqual(bottomDeltas.slice(0, 5).map(delta => Math.round(delta)), [120, 120, 120, 120, 120]);
+    assert.equal(bottomDeltas[5], 0);
+    assert.equal(bottomDeltas[6], 0);
+    console.log('PASS scroll sync echo suppression keeps full wheel ticks near the edges');
+
     assert.deepEqual(errors, [], 'No uncaught browser errors');
     console.log('Browser smoke tests passed (real IndexedDB and OPFS handles; native OS picker permissions are not automated).');
 } finally {
