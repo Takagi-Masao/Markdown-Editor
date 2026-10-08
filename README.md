@@ -87,29 +87,36 @@
 |   ├── document.js # 文档身份、已保存基线与快照提交
 |   └── draft.js # 干净会话、未保存草稿及 IndexedDB 文件句柄
 ├── tests
-|   ├── browser-smoke.mjs # 冒烟测试
-|   └── regression.test.mjs # 回归测试
+|   ├── browser-smoke.mjs # 主流程冒烟测试
+|   ├── browser-regression.mjs # 浏览器故障回归测试
+|   ├── regression.test.mjs # 模块故障回归测试
+|   ├── browser-helper.mjs # 共用 Chrome 启动、交互与清理
+|   ├── check-syntax.mjs # 检查 JS 脚本语法
+|   └── fixtures/rendering.md # 渲染回归样例
 ├── favicon.ico # 图标
 ├── package.json # 项目描述
 ├── LICENSE # 许可证文件
 └── README.md # 本文件
 ```
 
-## 回归测试
+## 测试
 
 测试不需要安装 npm 依赖，使用 Node.js 22.15+：
 
-```bash
-npm run check
-npm test
-node tests/browser-smoke.mjs
-```
+| 命令 | 目的与内容 |
+| --- | --- |
+| `npm run check` | 语法检查：自动发现 `js/`、`tests/` 中的 `.js` 和 `.mjs`，仅检查语法，不执行测试。 |
+| `npm run test:smoke` | 冒烟测试：快速确认应用能启动，并走通打开、代表性的 Markdown/HTML/公式预览、编辑保存、打印设置与导出入口、新建文件这条主流程。 |
+| `npm run test:regression` | 回归测试：运行模块及浏览器回归，验证已修复故障和相关边界场景不会再次出现。 |
+| `npm test` | 依次运行语法检查、冒烟测试和完整回归测试；任一步失败即停止。 |
 
-`npm test` 覆盖基线比较、空草稿、旧版迁移、快照保存竞争、权限与失败恢复、取消拖入及原子打开，以及较早读取、保存确认和文件选择器结果与新打开请求的竞态。测试使用单进程模式，避免受限环境中的子进程管道限制。
+冒烟测试只选少量代表输入，不穷举语法、确认框分支和异常情况。导出入口用 `window.print()` 替身验证按钮能够发起打印；实际 PDF 生成及打印内容准备由浏览器回归测试验证。
 
-浏览器烟雾测试使用真实 Chrome、原生撤销及 IndexedDB/OPFS 文件句柄，覆盖打开、保存、刷新、恢复、空文档和页面离开持久化。默认查找 Windows 的 Chrome；其他安装路径可用 `CHROME_PATH` 环境变量指定。测试自行使用临时端口及浏览器配置目录，浏览器依赖项仍从页面配置的 CDN 加载，需要网络连接。
+模块回归按恢复、保存、打开和新建分组，保留旧版空草稿迁移、恢复记录错配、存储不可用、保存期间继续编辑、权限拒绝、读写失败及最新打开意图被旧操作覆盖等场景。使用可控的延迟和错误模拟稳定复现竞态。只运行这部分可使用 `npm run test:regression:unit`，不需要 Chrome 或网络；测试使用单进程模式，避免受限环境中的子进程管道限制。
 
-浏览器测试也覆盖 HTML 与 Markdown 混排、代码转义、GFM、数据图片和数学公式，以及弹窗打印排除、打印前同步刷新正文与公式、导出快捷键、重复导出保护及打印生命周期清理，并实际生成 PDF。设置 `SMOKE_ARTIFACT_DIR` 环境变量可保留生成的 `print-regression.pdf` 供检查。
+浏览器回归验证刷新后丢失内容或文件关联、空草稿与拒绝恢复、HTML 被转义及相关 Markdown/GFM/代码/公式渲染、新建快捷键与文件关联、CRLF 导致的选区错位、弹窗键盘与焦点、滚动同步回环，以及弹窗混入打印、打印前正文未刷新、重复导出和打印后清理。它还实际生成 PDF；设置 `TEST_ARTIFACT_DIR` 可保留 `print-regression.pdf` 供检查。
+
+两套浏览器测试共用驱动，分别创建独立的临时端口及 Chrome 配置目录，结束后清理。使用真实 Chrome、原生键盘/撤销及 IndexedDB/OPFS 文件句柄；文件选择器由 OPFS 句柄替代，不自动操作系统文件对话框或验证原生权限提示。默认查找 Windows 的 Chrome，其他路径可用 `CHROME_PATH` 指定。页面依赖项仍从配置的 CDN 加载，因此浏览器测试及 `npm test` 需要 Chrome 和网络连接。
 
 ## 🤝 贡献
 

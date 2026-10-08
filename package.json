@@ -3,8 +3,11 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "node --test --test-isolation=none tests/regression.test.mjs",
-    "check": "node --check js/main.js && node --check js/document.js && node --check js/open.js && node --check js/save.js && node --check js/draft.js && node --check js/print.js && node --check js/render.js"
+    "test": "npm run check && npm run test:smoke && npm run test:regression",
+    "test:smoke": "node tests/browser-smoke.mjs",
+    "test:regression": "npm run test:regression:unit && node tests/browser-regression.mjs",
+    "test:regression:unit": "node --test --test-isolation=none tests/regression.test.mjs",
+    "check": "node tests/check-syntax.mjs"
   },
   "engines": { "node": ">=22.15.0" }
 }
