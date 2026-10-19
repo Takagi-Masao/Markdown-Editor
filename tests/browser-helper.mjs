@@ -17,7 +17,7 @@ export async function runBrowserSuite(name, run) {
         try {
             const path = resolve(root, '.' + new URL(req.url, 'http://localhost').pathname.replace(/\/$/, '/index.html'));
             if (!path.startsWith(root + sep)) throw new Error('Outside workspace');
-            const types = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.ico': 'image/x-icon' };
+            const types = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.ico': 'image/x-icon', '.woff2': 'font/woff2' };
             res.setHeader('Content-Type', types[extname(path)] || 'application/octet-stream');
             res.end(await readFile(path));
         } catch {
@@ -32,6 +32,7 @@ export async function runBrowserSuite(name, run) {
     let sequence = 0;
     const requests = new Map();
     const errors = [];
+    const resourceErrors = [];
     async function until(check, message, timeout = 20000) {
         const end = Date.now() + timeout;
         while (Date.now() < end) {
@@ -93,6 +94,17 @@ export async function runBrowserSuite(name, run) {
                 if (message.error) request?.reject(new Error(message.error.message));
                 else request?.resolve(message.result);
             } else if (message.method === 'Runtime.exceptionThrown') errors.push(message.params.exceptionDetails);
+            else if (message.method === 'Fetch.requestPaused') {
+                const { requestId, request } = message.params;
+                const local = new URL(request.url).origin === url;
+                if (!local) resourceErrors.push(`External request blocked: ${request.url}`);
+                void send(local ? 'Fetch.continueRequest' : 'Fetch.failRequest', local
+                    ? { requestId }
+                    : { requestId, errorReason: 'BlockedByClient' }).catch(error => errors.push(error.message));
+            } else if (message.method === 'Network.responseReceived') {
+                const { response } = message.params;
+                if (response.status >= 400) resourceErrors.push(`HTTP ${response.status}: ${response.url}`);
+            }
             else if (message.method === 'Page.javascriptDialogOpening') {
                 void send('Page.handleJavaScriptDialog', { accept: true }).catch(error => {
                     if (!/Inspected target navigated or closed|No dialog is showing/.test(error.message)) errors.push(error.message);
@@ -101,6 +113,10 @@ export async function runBrowserSuite(name, run) {
         };
         await send('Page.enable');
         await send('Runtime.enable');
+        await send('Network.enable');
+        await send('Network.setCacheDisabled', { cacheDisabled: true });
+        // Verify localization by blocking actual external requests, including imports and CSS fonts.
+        await send('Fetch.enable', { patterns: [{ urlPattern: 'http://*' }, { urlPattern: 'https://*' }] });
         await send('Page.addScriptToEvaluateOnNewDocument', { source: `
             window.__prompts = [];
             window.__alerts = [];
@@ -114,6 +130,8 @@ export async function runBrowserSuite(name, run) {
             await send('Input.dispatchKeyEvent', { type: 'keyUp', modifiers, key, code, windowsVirtualKeyCode });
         };
         await run({ root, send, evaluate, waitFor, edit, reload, save, pressKey, content, dirty });
+        await evaluate('document.fonts.ready.then(() => true)');
+        assert.deepEqual(resourceErrors, [], 'All HTTP resources load successfully from the local server');
         assert.deepEqual(errors, [], 'No uncaught browser errors');
         console.log(`${name} tests passed.`);
     } finally {

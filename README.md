@@ -4,7 +4,7 @@
 
 ## ✨ 主要特性
 
-- **便携式部署**：在线加载各依赖项，基本无需额外下载。
+- **便携式部署**：依赖全部本地化在 `vendor/` 目录（Vue 3.5.44 生产构建、marked 12.0.2、KaTeX 0.16.9 含字体、highlight.js 11.9.0），应用启动无需第三方 CDN。断网时仍可通过本地 HTTP 服务使用；文档引用的远程图片等资源仍需网络。
 - **实时分屏预览**：左侧编辑，右侧即时渲染 Markdown 效果。编辑区与预览区滚动位置实时同步，体验丝滑流畅。
 - **Markdown 与 HTML 混排**：支持 marked 的标准 Markdown、GFM 表格/任务列表/删除线及内嵌 HTML，保留 HTML 标签、属性、样式和原始链接地址；代码块与行内代码中的 HTML 按源码显示。
 - **本地文件上传**：支持从本地上传 Markdown 文件（也可直接把 `.md` / `.txt` 文件拖拽到页面打开），自动加载文件内容。
@@ -44,6 +44,8 @@
      ```
 
      然后访问 `http://localhost:<port>` 即可。
+
+   请通过 HTTP 服务访问；直接双击 HTML 使用 `file://` 打开会受到浏览器 ES 模块加载限制。项目直接使用固定版本的浏览器发布文件，无需执行 npm 构建；部署时保留 `index.html`、`js/`、`css/`、`vendor/` 和图标。
 3. 编辑 Markdown 内容或者本地上传 Markdown 文件，右侧实时预览效果。点击「保存 Markdown」按钮，保存方式按以下顺序选择：
    - Chrome/Edge 等支持 File System Access API 的浏览器，在安全上下文中可原位置写回已关联文件。文件句柄按文档身份保存在 IndexedDB 中，刷新后仍可使用；浏览器可能要求在再次点击保存时授权，不会在恢复页面时申请写入权限。
    - 没有关联句柄时使用浏览器原生“保存”对话框。通过普通文件输入框或拖拽打开的文件没有可写句柄，需要另存为。
@@ -93,6 +95,12 @@
 |   ├── browser-helper.mjs # 共用 Chrome 启动、交互与清理
 |   ├── check-syntax.mjs # 检查 JS 脚本语法
 |   └── fixtures/rendering.md # 渲染回归样例
+├── vendor # 本地依赖（固定版本，离线可用）
+|   ├── README.md # 发布来源、浏览器要求与许可证说明
+|   ├── vue.esm-browser.prod.js # Vue 3.5.44 生产构建
+|   ├── marked.esm.js # marked 12.0.2
+|   ├── katex # KaTeX 0.16.9（JS、样式与 woff2 字体）
+|   └── highlight # highlight.js 11.9.0（库与 github 主题）
 ├── favicon.ico # 图标
 ├── package.json # 项目描述
 ├── LICENSE # 许可证文件
@@ -116,7 +124,7 @@
 
 浏览器回归验证刷新后丢失内容或文件关联、空草稿与拒绝恢复、HTML 被转义及相关 Markdown/GFM/代码/公式渲染、新建快捷键与文件关联、CRLF 导致的选区错位、弹窗键盘与焦点、滚动同步回环，以及弹窗混入打印、打印前正文未刷新、重复导出和打印后清理。它还实际生成 PDF；设置 `TEST_ARTIFACT_DIR` 可保留 `print-regression.pdf` 供检查。
 
-两套浏览器测试共用驱动，分别创建独立的临时端口及 Chrome 配置目录，结束后清理。使用真实 Chrome、原生键盘/撤销及 IndexedDB/OPFS 文件句柄；文件选择器由 OPFS 句柄替代，不自动操作系统文件对话框或验证原生权限提示。默认查找 Windows 的 Chrome，其他路径可用 `CHROME_PATH` 指定。页面依赖项仍从配置的 CDN 加载，因此浏览器测试及 `npm test` 需要 Chrome 和网络连接。
+两套浏览器测试共用驱动，分别创建独立的临时端口及 Chrome 配置目录，结束后清理。使用真实 Chrome、原生键盘/撤销及 IndexedDB/OPFS 文件句柄；文件选择器由 OPFS 句柄替代，不自动操作系统文件对话框或验证原生权限提示。测试关闭缓存、阻断外部 HTTP(S) 请求并检查资源响应错误；浏览器回归还加载全部 20 个 KaTeX 字体，验证本地资源完整。默认查找 Windows 的 Chrome，其他路径可用 `CHROME_PATH` 指定。页面依赖全部来自本地 `vendor/`，浏览器测试与 `npm test` 只需安装 Chrome，无需网络连接。
 
 ## 🤝 贡献
 

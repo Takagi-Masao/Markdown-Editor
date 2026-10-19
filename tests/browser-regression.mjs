@@ -119,6 +119,13 @@ await runBrowserSuite('Browser regression', async ({ root, send, evaluate, waitF
         highlighted: true, indentedCode: true, literalTags: 0, math: 2,
     });
     await waitFor("document.querySelector('.preview-content img')?.naturalWidth === 1", 'embedded image decoding');
+    const fonts = await evaluate(`(async () => {
+        const faces = [...document.fonts].filter(face => face.family.startsWith('KaTeX_'));
+        await Promise.all(faces.map(face => face.load()));
+        return faces.map(face => face.status);
+    })()`);
+    assert.equal(fonts.length, 20, 'all bundled KaTeX font faces are declared');
+    assert.ok(fonts.every(status => status === 'loaded'), 'all bundled KaTeX fonts load locally');
     await edit('');
     console.log('PASS raw inline / block HTML, mixed Markdown, GFM, data images, literal code and math');
 
