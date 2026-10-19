@@ -1,0 +1,6 @@
+# Normalize text to LF both in Git and in every working tree, including Windows.
+* text=auto eol=lf
+
+# Binary assets must remain byte-for-byte unchanged.
+*.ico -text
+*.woff2 -text
