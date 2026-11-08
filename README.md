@@ -1,6 +1,10 @@
 # Markdown 编辑器 - 实时预览 + 导出 PDF
 
+[![Deploy demo to GitHub Pages](https://github.com/Takagi-Masao/Markdown-Editor/actions/workflows/deploy-pages.yml/badge.svg)](https://github.com/Takagi-Masao/Markdown-Editor/actions/workflows/deploy-pages.yml)
+
 一个功能丰富的 Web 端 Markdown 编辑器，支持实时预览、代码高亮、数学公式渲染以及 PDF 导出。
+
+**在线演示**：<https://takagi-masao.github.io/Markdown-Editor/>（推送到 `main` 后由 GitHub Actions 自动部署）
 
 ## ✨ 主要特性
 
