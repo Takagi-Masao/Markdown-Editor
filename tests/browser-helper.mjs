@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
 import { readFile, mkdtemp, rm } from 'node:fs/promises';
+import { existsSync } from 'node:fs';
 import { spawn } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import { resolve, join, extname, sep } from 'node:path';
@@ -9,10 +10,22 @@ import { setTimeout as delay } from 'node:timers/promises';
 
 const root = resolve(fileURLToPath(new URL('..', import.meta.url)));
 
+// CHROME_PATH wins; otherwise probe the usual install locations per platform.
+const browserCandidates = process.env.CHROME_PATH ? [process.env.CHROME_PATH] : [
+    'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+    'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
+    '/usr/bin/google-chrome',
+    '/usr/bin/google-chrome-stable',
+    '/usr/bin/chromium',
+    '/usr/bin/chromium-browser',
+    '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+];
+const browserPath = browserCandidates.find(candidate => existsSync(candidate));
+if (!browserPath) throw new Error(`找不到 Chrome，可用 CHROME_PATH 指定: ${browserCandidates.join(', ')}`);
+
 // Each suite gets an isolated profile; only browser plumbing is shared.
 export async function runBrowserSuite(name, run) {
     const profile = await mkdtemp(join(tmpdir(), `markdown-editor-${name.toLowerCase().replaceAll(" ", "-")}-`));
-    const browserPath = process.env.CHROME_PATH || 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe';
     const server = createServer(async (req, res) => {
         try {
             const path = resolve(root, '.' + new URL(req.url, 'http://localhost').pathname.replace(/\/$/, '/index.html'));

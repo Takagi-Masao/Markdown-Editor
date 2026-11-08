@@ -1,6 +1,7 @@
 # Markdown 编辑器 - 实时预览 + 导出 PDF
 
 [![Deploy demo to GitHub Pages](https://github.com/Takagi-Masao/Markdown-Editor/actions/workflows/deploy-pages.yml/badge.svg)](https://github.com/Takagi-Masao/Markdown-Editor/actions/workflows/deploy-pages.yml)
+[![CI](https://github.com/Takagi-Masao/Markdown-Editor/actions/workflows/ci.yml/badge.svg)](https://github.com/Takagi-Masao/Markdown-Editor/actions/workflows/ci.yml)
 
 一个功能丰富的 Web 端 Markdown 编辑器，支持实时预览、代码高亮、数学公式渲染以及 PDF 导出。
 
@@ -128,7 +129,7 @@
 
 浏览器回归验证刷新后丢失内容或文件关联、空草稿与拒绝恢复、HTML 被转义及相关 Markdown/GFM/代码/公式渲染、新建快捷键与文件关联、CRLF 导致的选区错位、弹窗键盘与焦点、滚动同步回环，以及弹窗混入打印、打印前正文未刷新、重复导出和打印后清理。它还实际生成 PDF；设置 `TEST_ARTIFACT_DIR` 可保留 `print-regression.pdf` 供检查。
 
-两套浏览器测试共用驱动，分别创建独立的临时端口及 Chrome 配置目录，结束后清理。使用真实 Chrome、原生键盘/撤销及 IndexedDB/OPFS 文件句柄；文件选择器由 OPFS 句柄替代，不自动操作系统文件对话框或验证原生权限提示。测试关闭缓存、阻断外部 HTTP(S) 请求并检查资源响应错误；浏览器回归还加载全部 20 个 KaTeX 字体，验证本地资源完整。默认查找 Windows 的 Chrome，其他路径可用 `CHROME_PATH` 指定。页面依赖全部来自本地 `vendor/`，浏览器测试与 `npm test` 只需安装 Chrome，无需网络连接。
+两套浏览器测试共用驱动，分别创建独立的临时端口及 Chrome 配置目录，结束后清理。使用真实 Chrome、原生键盘/撤销及 IndexedDB/OPFS 文件句柄；文件选择器由 OPFS 句柄替代，不自动操作系统文件对话框或验证原生权限提示。测试关闭缓存、阻断外部 HTTP(S) 请求并检查资源响应错误；浏览器回归还加载全部 20 个 KaTeX 字体，验证本地资源完整。默认按平台常见安装位置查找 Chrome（Windows / Linux / macOS），其他路径可用 `CHROME_PATH` 指定。页面依赖全部来自本地 `vendor/`，浏览器测试与 `npm test` 只需安装 Chrome，无需网络连接。`npm test` 在 GitHub Actions（`ubuntu-latest` + 预装 Chrome）上随每次推送与 PR 运行，结果见顶部 CI 徽章。
 
 ## 🤝 贡献
 
